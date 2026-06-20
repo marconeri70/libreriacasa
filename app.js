@@ -41,9 +41,7 @@ async function searchBook(isbn) {
 
     const response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
 
-    if (!response.ok) {
-      throw new Error('Libro non trovato');
-    }
+    if (!response.ok) throw new Error();
 
     const data = await response.json();
 
@@ -51,21 +49,16 @@ async function searchBook(isbn) {
 
     if (data.authors && data.authors.length > 0) {
       try {
-        const authorResponse = await fetch(
-          `https://openlibrary.org${data.authors[0].key}.json`
-        );
-
+        const authorResponse = await fetch(`https://openlibrary.org${data.authors[0].key}.json`);
         const authorData = await authorResponse.json();
         author = authorData.name || 'Autore sconosciuto';
-      } catch (e) {
-        author = 'Autore sconosciuto';
-      }
+      } catch (e) {}
     }
 
     currentBook = {
-      isbn: isbn,
+      isbn,
       title: data.title || 'Titolo sconosciuto',
-      author: author,
+      author,
       year: data.publish_date || 'Anno non disponibile',
       cover: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`,
       place: ''
@@ -80,45 +73,56 @@ async function searchBook(isbn) {
     `;
 
   } catch (e) {
-    alert('Libro non trovato. Puoi provare a inserire manualmente il codice ISBN.');
+    alert('Libro non trovato. Prova a inserire manualmente il codice ISBN.');
   }
 }
 
-function startScanner() {
+async function startScanner() {
   reader.style.display = 'block';
-  reader.innerHTML = '';
+  reader.innerHTML = '<p>📷 Avvio fotocamera...</p>';
 
-  html5QrCode = new Html5Qrcode("reader");
+  try {
+    if (!window.Html5Qrcode) {
+      alert('Libreria scanner non caricata. Ricarica la pagina.');
+      return;
+    }
 
-  html5QrCode.start(
-    { facingMode: "environment" },
-    {
-      fps: 10,
-      qrbox: 250,
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.CODE_128
-      ]
-    },
-    decodedText => {
-      html5QrCode.stop().then(() => {
-        reader.style.display = 'none';
+    const cameras = await Html5Qrcode.getCameras();
 
-        const isbn = decodedText.replace(/-/g, '').replace(/\s/g, '');
+    if (!cameras || cameras.length === 0) {
+      alert('Nessuna fotocamera trovata o permesso non concesso.');
+      return;
+    }
 
-        searchBook(isbn);
-      });
-    },
-    errorMessage => {}
-  ).catch(err => {
-    alert('Impossibile avviare la fotocamera. Controlla i permessi del browser.');
-  });
+    const cameraId = cameras[cameras.length - 1].id;
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    await html5QrCode.start(
+      cameraId,
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 160 }
+      },
+      decodedText => {
+        html5QrCode.stop().then(() => {
+          reader.style.display = 'none';
+          const isbn = decodedText.replace(/-/g, '').replace(/\s/g, '');
+          searchBook(isbn);
+        });
+      },
+      errorMessage => {}
+    );
+
+  } catch (err) {
+    alert('Fotocamera non avviata. Controlla i permessi del browser e ricarica la pagina.');
+    reader.style.display = 'none';
+  }
 }
 
 scanBtn.addEventListener('click', () => {
   const scelta = confirm(
-    'Vuoi usare la fotocamera per scansionare il codice ISBN?\n\nPremi OK per scannerizzare.\nPremi Annulla per inserirlo manualmente.'
+    'Vuoi usare la fotocamera?\n\nOK = Fotocamera\nAnnulla = Inserimento manuale'
   );
 
   if (scelta) {
@@ -139,16 +143,13 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   currentBook.place = document.getElementById('posizione').value || 'Non indicato';
 
   library.push(currentBook);
-
   localStorage.setItem('library', JSON.stringify(library));
 
   currentBook = null;
-
   document.getElementById('bookInfo').innerHTML = 'Nessun libro selezionato';
   document.getElementById('posizione').value = '';
 
   renderLibrary();
-
   alert('Libro salvato');
 });
 
