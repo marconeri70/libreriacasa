@@ -2,45 +2,59 @@ let library = JSON.parse(localStorage.getItem('library')) || [];
 
 let currentBook = null;
 
-function renderLibrary() {
+const libraryDiv = document.getElementById('library');
 
- const container = document.getElementById('library');
+const searchInput = document.getElementById('search');
 
- container.innerHTML = '';
+function renderLibrary(filter = '') {
 
- library.forEach(book => {
+  libraryDiv.innerHTML = '';
 
-   container.innerHTML += `
+  let books = library.filter(book =>
 
-   <div class="card">
+    book.title.toLowerCase().includes(filter.toLowerCase()) ||
 
-   ${book.cover ? `<img src="${book.cover}">` : ''}
+    book.author.toLowerCase().includes(filter.toLowerCase())
 
-   <h3>${book.title}</h3>
+  );
 
-   <p>✍️ ${book.author}</p>
+  if (books.length === 0) {
 
-   <p>📅 ${book.year}</p>
+    libraryDiv.innerHTML = '<p>Nessun libro presente.</p>';
 
-   <p>📍 ${book.place}</p>
+    return;
 
-   </div>
+  }
 
-   `;
+  books.forEach(book => {
 
- });
+    libraryDiv.innerHTML += `
+
+    <div class="card">
+
+      ${book.cover ?
+
+      `<img src="${book.cover}" alt="${book.title}">`
+
+      : ''}
+
+      <h3>📖 ${book.title}</h3>
+
+      <p>✍️ ${book.author}</p>
+
+      <p>📅 ${book.year}</p>
+
+      <p>📍 ${book.place}</p>
+
+      <p>🔢 ISBN: ${book.isbn}</p>
+
+    </div>
+
+    `;
+
+  });
 
 }
-
-document.getElementById('scanBtn').addEventListener('click', () => {
-
- const isbn = prompt('Inserisci il codice ISBN');
-
- if (!isbn) return;
-
- searchBook(isbn);
-
-});
 
 async function searchBook(isbn){
 
@@ -52,25 +66,59 @@ async function searchBook(isbn){
 
    );
 
+   if(!response.ok){
+
+      throw new Error();
+
+   }
+
    const data = await response.json();
+
+   let author='Autore sconosciuto';
+
+   if(data.authors){
+
+      try{
+
+        const a=await fetch(
+
+        `https://openlibrary.org${data.authors[0].key}.json`
+
+        );
+
+        const ad=await a.json();
+
+        author=ad.name;
+
+      }
+
+      catch(e){}
+
+   }
 
    currentBook={
 
-     isbn:isbn,
+      isbn:isbn,
 
-     title:data.title || 'Titolo sconosciuto',
+      title:data.title || 'Titolo sconosciuto',
 
-     author:'Autore non disponibile',
+      author:author,
 
-     year:data.publish_date || ''
+      year:data.publish_date || '',
+
+      cover:`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`
 
    };
 
    document.getElementById('bookInfo').innerHTML=`
 
-   <h3>${currentBook.title}</h3>
+   <h3>📖 ${currentBook.title}</h3>
 
-   <p>ISBN: ${isbn}</p>
+   <p>✍️ ${currentBook.author}</p>
+
+   <p>📅 ${currentBook.year}</p>
+
+   <img src="${currentBook.cover}" width="120">
 
    `;
 
@@ -84,21 +132,31 @@ async function searchBook(isbn){
 
 }
 
+document.getElementById('scanBtn').addEventListener('click',()=>{
+
+ let isbn=prompt('Inserisci ISBN');
+
+ if(!isbn)return;
+
+ isbn=isbn.replace(/-/g,'');
+
+ searchBook(isbn);
+
+});
+
 document.getElementById('saveBtn').addEventListener('click',()=>{
 
  if(!currentBook){
 
-   alert('Prima seleziona un libro');
+   alert('Prima cerca un libro');
 
    return;
 
  }
 
- currentBook.place =
+ currentBook.place=
 
- document.getElementById('posizione').value;
-
- currentBook.cover='';
+ document.getElementById('posizione').value || 'Non indicato';
 
  library.push(currentBook);
 
@@ -113,6 +171,12 @@ document.getElementById('saveBtn').addEventListener('click',()=>{
  renderLibrary();
 
  alert('Libro salvato');
+
+});
+
+searchInput.addEventListener('input',e=>{
+
+ renderLibrary(e.target.value);
 
 });
 
