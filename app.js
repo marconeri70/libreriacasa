@@ -8,153 +8,273 @@ const scanBtn = document.getElementById('scanBtn');
 const reader = document.getElementById('reader');
 
 function renderLibrary(filter = '') {
+
   libraryDiv.innerHTML = '';
 
   const books = library.filter(book =>
+
     book.title.toLowerCase().includes(filter.toLowerCase()) ||
+
     book.author.toLowerCase().includes(filter.toLowerCase()) ||
+
     book.isbn.includes(filter)
+
   );
 
   if (books.length === 0) {
+
     libraryDiv.innerHTML = '<p>Nessun libro presente.</p>';
+
     return;
+
   }
 
   books.forEach(book => {
+
     libraryDiv.innerHTML += `
+
       <div class="card">
-        ${book.cover ? `<img src="${book.cover}" alt="${book.title}">` : ''}
+
+        ${book.cover ? `<img src="${book.cover}">` : ''}
+
         <h3>📖 ${book.title}</h3>
+
         <p>✍️ ${book.author}</p>
+
         <p>📅 ${book.year}</p>
+
         <p>📍 ${book.place}</p>
-        <p>🔢 ISBN: ${book.isbn}</p>
+
+        <p>🔢 ${book.isbn}</p>
+
       </div>
+
     `;
+
   });
+
 }
 
-async function searchBook(isbn) {
-  try {
-    isbn = isbn.replace(/-/g, '').replace(/\s/g, '');
+async function searchBook(isbn){
 
-    const response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+  isbn = isbn.replace(/-/g,'')
 
-    if (!response.ok) throw new Error();
+             .replace(/\s/g,'');
 
-    const data = await response.json();
+  try{
 
-    let author = 'Autore sconosciuto';
+    let response = await fetch(
 
-    if (data.authors && data.authors.length > 0) {
-      try {
-        const authorResponse = await fetch(`https://openlibrary.org${data.authors[0].key}.json`);
-        const authorData = await authorResponse.json();
-        author = authorData.name || 'Autore sconosciuto';
-      } catch (e) {}
+      `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+
+    );
+
+    let data = await response.json();
+
+    if(data.totalItems > 0){
+
+      let book = data.items[0].volumeInfo;
+
+      currentBook = {
+
+        isbn:isbn,
+
+        title:book.title || 'Titolo sconosciuto',
+
+        author:(book.authors || ['Autore sconosciuto']).join(', '),
+
+        year:(book.publishedDate || '').substring(0,4),
+
+        cover:book.imageLinks?.thumbnail || '',
+
+        place:''
+
+      };
+
+      showBook();
+
+      return;
+
     }
+
+    response = await fetch(
+
+      `https://openlibrary.org/isbn/${isbn}.json`
+
+    );
+
+    if(!response.ok){
+
+      throw new Error();
+
+    }
+
+    data = await response.json();
 
     currentBook = {
-      isbn,
-      title: data.title || 'Titolo sconosciuto',
-      author,
-      year: data.publish_date || 'Anno non disponibile',
-      cover: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`,
-      place: ''
+
+      isbn:isbn,
+
+      title:data.title || 'Titolo sconosciuto',
+
+      author:'Autore sconosciuto',
+
+      year:data.publish_date || '',
+
+      cover:`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`,
+
+      place:''
+
     };
 
-    document.getElementById('bookInfo').innerHTML = `
-      <h3>📖 ${currentBook.title}</h3>
-      <p>✍️ ${currentBook.author}</p>
-      <p>📅 ${currentBook.year}</p>
-      <p>🔢 ISBN: ${currentBook.isbn}</p>
-      <img src="${currentBook.cover}" width="120">
-    `;
+    showBook();
 
-  } catch (e) {
-    alert('Libro non trovato. Prova a inserire manualmente il codice ISBN.');
   }
+
+  catch(e){
+
+    alert(
+
+      '📕 Libro non trovato.\n\nInserisci un altro ISBN.'
+
+    );
+
+  }
+
 }
 
-async function startScanner() {
-  reader.style.display = 'block';
-  reader.innerHTML = '<p>📷 Avvio fotocamera...</p>';
+function showBook(){
 
-  try {
-    if (!window.Html5Qrcode) {
-      alert('Libreria scanner non caricata. Ricarica la pagina.');
-      return;
-    }
+  document.getElementById('bookInfo').innerHTML = `
+
+    <h3>📖 ${currentBook.title}</h3>
+
+    <p>✍️ ${currentBook.author}</p>
+
+    <p>📅 ${currentBook.year}</p>
+
+    <img src="${currentBook.cover}" width="120">
+
+  `;
+
+}
+
+async function startScanner(){
+
+  try{
+
+    reader.style.display='block';
+
+    reader.innerHTML='';
 
     const cameras = await Html5Qrcode.getCameras();
 
-    if (!cameras || cameras.length === 0) {
-      alert('Nessuna fotocamera trovata o permesso non concesso.');
-      return;
-    }
+    const cameraId = cameras[cameras.length-1].id;
 
-    const cameraId = cameras[cameras.length - 1].id;
-
-    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode = new Html5Qrcode('reader');
 
     await html5QrCode.start(
+
       cameraId,
+
       {
-        fps: 10,
-        qrbox: { width: 250, height: 160 }
+
+        fps:10,
+
+        qrbox:{
+
+          width:250,
+
+          height:150
+
+        }
+
       },
-      decodedText => {
-        html5QrCode.stop().then(() => {
-          reader.style.display = 'none';
-          const isbn = decodedText.replace(/-/g, '').replace(/\s/g, '');
-          searchBook(isbn);
+
+      decodedText=>{
+
+        html5QrCode.stop()
+
+        .then(()=>{
+
+          reader.style.display='none';
+
+          searchBook(decodedText);
+
         });
+
       },
-      errorMessage => {}
+
+      ()=>{}
+
     );
 
-  } catch (err) {
-    alert('Fotocamera non avviata. Controlla i permessi del browser e ricarica la pagina.');
-    reader.style.display = 'none';
   }
+
+  catch(e){
+
+    alert(
+
+      '⚠️ Controlla i permessi della fotocamera.'
+
+    );
+
+  }
+
 }
 
-scanBtn.addEventListener('click', () => {
-  const scelta = confirm(
-    'Vuoi usare la fotocamera?\n\nOK = Fotocamera\nAnnulla = Inserimento manuale'
-  );
+scanBtn.addEventListener('click',()=>{
 
-  if (scelta) {
-    startScanner();
-  } else {
-    let isbn = prompt('Inserisci ISBN');
-    if (!isbn) return;
-    searchBook(isbn);
-  }
+  startScanner();
+
 });
 
-document.getElementById('saveBtn').addEventListener('click', () => {
-  if (!currentBook) {
-    alert('Prima cerca o scannerizza un libro');
+document.getElementById('saveBtn')
+
+.addEventListener('click',()=>{
+
+  if(!currentBook){
+
+    alert('Prima scannerizza un libro');
+
     return;
+
   }
 
-  currentBook.place = document.getElementById('posizione').value || 'Non indicato';
+  currentBook.place =
+
+  document.getElementById('posizione')
+
+  .value || 'Non indicato';
 
   library.push(currentBook);
-  localStorage.setItem('library', JSON.stringify(library));
 
-  currentBook = null;
-  document.getElementById('bookInfo').innerHTML = 'Nessun libro selezionato';
-  document.getElementById('posizione').value = '';
+  localStorage.setItem(
+
+    'library',
+
+    JSON.stringify(library)
+
+  );
 
   renderLibrary();
-  alert('Libro salvato');
+
+  document.getElementById('posizione')
+
+  .value='';
+
+  alert('✅ Libro salvato');
+
 });
 
-searchInput.addEventListener('input', e => {
-  renderLibrary(e.target.value);
+searchInput.addEventListener(
+
+'input',
+
+e=>{
+
+ renderLibrary(e.target.value);
+
 });
 
 renderLibrary();
