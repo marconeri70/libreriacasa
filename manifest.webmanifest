@@ -1,0 +1,10 @@
+{
+  "name": "Libreria Casa",
+  "short_name": "Libreria",
+  "description": "App per catalogare la libreria di casa",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f2f2f2",
+  "theme_color": "#0d47a1",
+  "icons": []
+}
