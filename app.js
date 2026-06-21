@@ -965,6 +965,9 @@ async function saveCurrentBook(){
     return;
   }
 
+  const isEditing = editingBookIndex !== null && library[editingBookIndex];
+  const oldBook = isEditing ? library[editingBookIndex] : null;
+
   const title = manualTitle.value.trim();
   const author = manualAuthor.value.trim();
   const year = manualYear.value.trim();
@@ -981,14 +984,18 @@ async function saveCurrentBook(){
     currentBook.year = year;
   }
 
-  currentBook.id = String(Date.now());
+  currentBook.id = isEditing
+    ? String(oldBook.id || Date.now())
+    : String(Date.now());
+
   currentBook.place = getPositionValue();
   currentBook.category = category.value || 'Non indicata';
   currentBook.status = statusSelect.value || 'Da leggere';
   currentBook.rating = Number(rating.value || 0);
   currentBook.notes = notes.value.trim();
 
-  const sameBook = library.find(book =>
+  const sameBook = library.find((book, index) =>
+    index !== editingBookIndex &&
     book.isbn &&
     currentBook.isbn &&
     book.isbn !== 'Manuale' &&
@@ -1005,17 +1012,28 @@ async function saveCurrentBook(){
 
   const bookToSave = {...currentBook};
 
-  library.push(bookToSave);
+  if(isEditing){
+    library[editingBookIndex] = bookToSave;
+  }else{
+    library.push(bookToSave);
+  }
+
   saveLibraryLocal();
 
   let onlineMessage = '';
 
   if(cloudSession){
     try{
+      if(isEditing && oldBook && oldBook.id){
+        await deleteBookOnline(oldBook.id);
+      }
+
       const result = await saveBookOnline(bookToSave);
 
       if(result.ok){
-        onlineMessage = '\n☁️ Salvato anche online.';
+        onlineMessage = isEditing
+          ? '\n☁️ Modifica salvata anche online.'
+          : '\n☁️ Salvato anche online.';
       }else{
         onlineMessage = '\n⚠️ Salvato sul dispositivo, ma non online.';
       }
@@ -1027,6 +1045,7 @@ async function saveCurrentBook(){
   }
 
   currentBook = null;
+  editingBookIndex = null;
 
   $('bookInfo').innerHTML = 'Nessun libro selezionato';
 
@@ -1048,7 +1067,11 @@ async function saveCurrentBook(){
   renderLibrary(searchInput.value);
   updateStats();
 
-  alert('✅ Libro salvato nella tua libreria.' + onlineMessage);
+  alert(
+    isEditing
+    ? '✅ Modifiche salvate.' + onlineMessage
+    : '✅ Libro salvato nella tua libreria.' + onlineMessage
+  );
 }
 
 function renderLibrary(filter = ''){
