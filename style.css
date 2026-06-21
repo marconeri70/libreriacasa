@@ -460,3 +460,13 @@ hr{
     grid-template-columns:1fr;
   }
 }
+
+.detail-actions .primary,
+.detail-actions .secondary,
+.detail-actions .danger{
+  margin:4px 0;
+}
+
+.card p:last-child{
+  font-weight:bold;
+}
