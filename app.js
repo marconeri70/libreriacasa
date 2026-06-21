@@ -1107,7 +1107,7 @@ function renderLibrary(filter = ''){
     const index = item.index;
 
     libraryDiv.innerHTML += `
-      <div class="card">
+      <div class="card book-card" data-open="${index}">
         <div class="card-content">
           ${
             book.cover
@@ -1128,7 +1128,10 @@ function renderLibrary(filter = ''){
           </div>
         </div>
 
-        <button data-delete="${index}">🗑️ Elimina libro</button>
+        <div class="card-actions">
+          <button class="open-btn" data-open="${index}">📖 Apri scheda</button>
+          <button class="delete-btn" data-delete="${index}">🗑️ Elimina</button>
+        </div>
       </div>
     `;
   });
