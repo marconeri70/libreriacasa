@@ -2,7 +2,7 @@ let currentBook = null;
 let html5QrCode = null;
 let editingBookIndex = null;
 
-const GOOGLE_BOOKS_API_KEY = 'INCOLLA_QUI_LA_TUA_CHIAVE_GOOGLE_BOOKS';
+const GOOGLE_BOOKS_API_KEY = 'AIzaSyB6fg392aV7JjXI9IfCo0ROuiOgvH12QC4';
 
 const CLOUD_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfNt2NS4v_e-EvWflkrG_MZ-7jBe6VcDEx5t98odOT0KmbRCN94ksMCCYiNLGNU9KQqA/exec';
 
