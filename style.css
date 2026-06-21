@@ -470,3 +470,48 @@ hr{
 .card p:last-child{
   font-weight:bold;
 }
+
+.small-text{
+  color:#5d6b7a;
+  font-size:14px;
+  line-height:1.4;
+}
+
+.loan-card,
+.request-card{
+  background:#f8fafc;
+  border:1px solid #dce5f2;
+  border-radius:14px;
+  padding:13px;
+  margin:12px 0;
+}
+
+.loan-card h3,
+.request-card h3{
+  margin:0 0 8px;
+  color:#0d47a1;
+}
+
+.loan-card p,
+.request-card p{
+  margin:5px 0;
+  line-height:1.35;
+}
+
+.request-badge{
+  display:inline-block;
+  background:#fff3cd;
+  color:#7a5200;
+  padding:4px 8px;
+  border-radius:999px;
+  font-weight:bold;
+  font-size:12px;
+}
+
+.bottom-nav{
+  grid-template-columns:repeat(6,1fr);
+}
+
+.nav-btn span{
+  font-size:10px;
+}
