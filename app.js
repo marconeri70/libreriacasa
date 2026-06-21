@@ -805,14 +805,51 @@ function openBookDetail(index){
           <p>🏷️ <strong>Categoria:</strong> ${safe(book.category || 'Non indicata')}</p>
           <p>📘 <strong>Stato:</strong> ${safe(book.status || 'Da leggere')}</p>
           <p>⭐ <strong>Valutazione:</strong> ${safe(ratingStars(book.rating))}</p>
+
           ${book.notes ? `<p>📝 <strong>Note:</strong> ${safe(book.notes)}</p>` : ''}
+
+          <hr>
+
+          <p>🤝 <strong>Prestito:</strong> ${loanStatusText(book)}</p>
+
+          ${
+            book.dataPrevistaRestituzione
+            ? `<p>🔔 <strong>Restituzione prevista:</strong> ${safe(book.dataPrevistaRestituzione)}</p>`
+            : ''
+          }
+
+          ${
+            book.dataRestituzione
+            ? `<p>✅ <strong>Restituito il:</strong> ${safe(book.dataRestituzione)}</p>`
+            : ''
+          }
         </div>
       </div>
 
       <div class="detail-actions">
-        <button class="secondary" data-detail-edit="${index}">✏️ Modifica libro</button>
-        <button class="danger" data-detail-delete="${index}">🗑️ Elimina libro</button>
-        <button class="primary" data-close-detail>Chiudi</button>
+        <button class="secondary" data-detail-edit="${index}">
+          ✏️ Modifica libro
+        </button>
+
+        <button class="primary" data-detail-loan="${index}">
+          🤝 Segna come prestato
+        </button>
+
+        <button class="secondary" data-detail-return="${index}">
+          ✅ Segna come restituito
+        </button>
+
+        <button class="secondary" data-detail-request="${index}">
+          📩 Richiedi questo libro
+        </button>
+
+        <button class="danger" data-detail-delete="${index}">
+          🗑️ Elimina libro
+        </button>
+
+        <button class="primary" data-close-detail>
+          Chiudi
+        </button>
       </div>
     </div>
   `;
@@ -1279,6 +1316,18 @@ document.addEventListener('click', e => {
     const index = Number(e.target.dataset.detailDelete);
     closeBookDetail();
     deleteBook(index);
+  }
+
+  if(e.target.dataset.detailLoan !== undefined){
+    markBookLoaned(Number(e.target.dataset.detailLoan));
+  }
+
+  if(e.target.dataset.detailReturn !== undefined){
+    markBookReturned(Number(e.target.dataset.detailReturn));
+  }
+
+  if(e.target.dataset.detailRequest !== undefined){
+    requestBook(Number(e.target.dataset.detailRequest));
   }
 });
 
