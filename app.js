@@ -273,9 +273,12 @@ async function searchBookByIsbn(rawCode){
     return;
   }
 
+  isbnInput.value = isbn;
+  scannedCode.value = isbn;
+
   if(isMagazineOrIssn(isbn)){
     showNotIsbnMessage(isbn);
-    alert('Questo codice inizia con 977: probabilmente non è un ISBN.');
+    alert('Questo codice inizia con 977: probabilmente è un codice ISSN o da edicola, non un ISBN.');
     return;
   }
 
@@ -285,21 +288,9 @@ async function searchBookByIsbn(rawCode){
     return;
   }
 
-  setLoading('Ricerca libro in corso...');
+  setLoading('Ricerca libro su Open Library...');
 
   try{
-    let volume = await searchGoogleBooks(`isbn:${isbn}`);
-
-    if(!volume){
-      volume = await searchGoogleBooks(isbn);
-    }
-
-    if(volume){
-      currentBook = makeBookFromGoogle(volume, isbn);
-      showBook();
-      return;
-    }
-
     const openBook = await searchOpenLibraryByIsbn(isbn);
 
     if(openBook){
@@ -312,21 +303,30 @@ async function searchBookByIsbn(rawCode){
 
     $('bookInfo').innerHTML = `
       <h3>📕 Libro non trovato online</h3>
-      <p>Codice cercato: <strong>${safe(isbn)}</strong></p>
-      <p>Puoi correggere il codice, cercare per titolo oppure inserirlo manualmente.</p>
+      <p>Codice ISBN letto:</p>
+      <p><strong>${safe(isbn)}</strong></p>
+      <p>Il codice è stato inserito nel campo ISBN.</p>
+      <p>Compila titolo, autore e anno, poi premi <strong>“Prepara inserimento manuale”</strong>.</p>
     `;
 
-    alert('Libro non trovato online. Puoi correggere il codice o inserirlo manualmente.');
+    manualTitle.focus();
+
+    alert('Libro non trovato online. Inserisci titolo, autore e anno, poi premi “Prepara inserimento manuale”.');
 
   }catch(e){
     currentBook = null;
 
     $('bookInfo').innerHTML = `
       <h3>⚠️ Errore ricerca</h3>
-      <p>Controlla la connessione internet e riprova.</p>
+      <p>Non è stato possibile collegarsi a Open Library.</p>
+      <p>Codice ISBN:</p>
+      <p><strong>${safe(isbn)}</strong></p>
+      <p>Puoi comunque inserirlo manualmente.</p>
     `;
 
-    alert('Errore durante la ricerca. Controlla la connessione.');
+    manualTitle.focus();
+
+    alert('Errore durante la ricerca. Puoi inserirlo manualmente.');
   }
 }
 
