@@ -769,6 +769,120 @@ async function deleteBookOnline(id){
   }catch(e){}
 }
 
+function openBookDetail(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  closeBookDetail();
+
+  const modal = document.createElement('div');
+  modal.id = 'bookDetailModal';
+  modal.className = 'modal-backdrop';
+
+  modal.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📖 Scheda libro</h2>
+        <button class="modal-close" data-close-detail>✕</button>
+      </div>
+
+      <div class="detail-content">
+        ${
+          book.cover
+          ? `<img class="detail-cover" src="${safe(book.cover)}" alt="${safe(book.title)}">`
+          : `<div class="detail-cover placeholder">📚</div>`
+        }
+
+        <div class="detail-info">
+          <h3>${safe(book.title)}</h3>
+          <p>✍️ <strong>Autore:</strong> ${safe(book.author)}</p>
+          <p>📅 <strong>Anno:</strong> ${safe(book.year)}</p>
+          <p>🔢 <strong>ISBN:</strong> ${safe(book.isbn || 'Manuale')}</p>
+          <p>📍 <strong>Posizione:</strong> ${safe(book.place || 'Non indicata')}</p>
+          <p>🏷️ <strong>Categoria:</strong> ${safe(book.category || 'Non indicata')}</p>
+          <p>📘 <strong>Stato:</strong> ${safe(book.status || 'Da leggere')}</p>
+          <p>⭐ <strong>Valutazione:</strong> ${safe(ratingStars(book.rating))}</p>
+          ${book.notes ? `<p>📝 <strong>Note:</strong> ${safe(book.notes)}</p>` : ''}
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button class="secondary" data-detail-edit="${index}">✏️ Modifica libro</button>
+        <button class="danger" data-detail-delete="${index}">🗑️ Elimina libro</button>
+        <button class="primary" data-close-detail>Chiudi</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.addEventListener('click', e => {
+    if(e.target.id === 'bookDetailModal'){
+      closeBookDetail();
+    }
+  });
+}
+
+function closeBookDetail(){
+  const modal = document.getElementById('bookDetailModal');
+
+  if(modal){
+    modal.remove();
+  }
+}
+
+function startEditBook(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  editingBookIndex = index;
+  currentBook = {...book};
+
+  isbnInput.value = book.isbn || '';
+  scannedCode.value = book.isbn || '';
+
+  manualTitle.value = book.title || '';
+  manualAuthor.value = book.author || '';
+  manualYear.value = book.year || '';
+
+  const availablePositions = Array.from(posizione.options).map(option => option.value);
+
+  if(availablePositions.includes(book.place)){
+    posizione.value = book.place;
+    posizioneAltro.value = '';
+  }else{
+    posizione.value = 'Altro';
+    posizioneAltro.value = book.place || '';
+  }
+
+  category.value = book.category || 'Non indicata';
+  statusSelect.value = book.status || 'Da leggere';
+  rating.value = String(book.rating || 0);
+  notes.value = book.notes || '';
+
+  showBook();
+  closeBookDetail();
+
+  if(typeof openPage === 'function'){
+    openPage('add');
+  }
+
+  setTimeout(() => {
+    document.getElementById('bookInfo').scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+  }, 300);
+
+  alert('Scheda aperta in modifica. Cambia i dati e poi premi “Salva libro”.');
+}
+
 async function stopScanner(){
   try{
     if(html5QrCode){
