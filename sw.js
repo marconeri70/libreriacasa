@@ -1,4 +1,4 @@
-const CACHE_NAME = 'libreria-casa-v10';
+const CACHE_NAME = 'libreria-casa-v12';
 
 const FILES_TO_CACHE = [
   './',
