@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Libreria Casa 3.0</title>
+  <title>Libreria Casa</title>
 
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
@@ -14,152 +14,243 @@
 
 <body>
 
-<header>
+<header class="app-header">
   <h1>📚 Libreria Casa</h1>
   <p>Catalogo personale dei libri di casa</p>
 </header>
 
-<main>
+<main class="app-main">
 
-  <section class="panel">
-    <h2>☁️ Archivio online</h2>
+  <!-- HOME -->
+  <section id="page-home" class="page active">
 
-    <div id="cloudStatus" class="box">
-      Nessuna libreria online collegata.
-    </div>
+    <section class="panel hero-panel">
+      <h2>🏠 Home</h2>
 
-    <h3>🔑 Accedi a una libreria</h3>
+      <div id="cloudStatus" class="box">
+        Nessuna libreria online collegata.
+      </div>
 
-    <input type="text" id="loginCode" placeholder="Codice libreria, es: MARCO-2026">
-    <input type="password" id="loginPin" placeholder="PIN">
+      <div class="quick-grid">
+        <button class="quick-btn" data-go="scanner">📷<span>Scannerizza</span></button>
+        <button class="quick-btn" data-go="library">📚<span>Libreria</span></button>
+        <button class="quick-btn" data-go="add">➕<span>Aggiungi</span></button>
+        <button class="quick-btn" data-go="archive">☁️<span>Archivio</span></button>
+      </div>
+    </section>
 
-    <button id="loginLibraryBtn" class="primary">🔑 Accedi</button>
+    <section class="panel">
+      <h2>📊 Statistiche</h2>
+      <div id="stats" class="stats"></div>
+    </section>
 
-    <hr>
+    <section class="panel info-panel">
+      <h2>ℹ️ Come usare l’app</h2>
+      <p>
+        Scannerizza un ISBN, controlla i dati del libro, scegli posizione, categoria e stato lettura, poi salva.
+      </p>
+      <p>
+        Se hai collegato l’archivio online, i libri vengono salvati anche nel Foglio Google.
+      </p>
+    </section>
 
-    <h3>➕ Crea nuova libreria</h3>
-
-    <input type="text" id="newLibraryName" placeholder="Nome libreria, es: Libreria Marco">
-    <input type="text" id="newLibraryCode" placeholder="Codice libreria, es: MARCO-2026">
-    <input type="password" id="newLibraryPin" placeholder="PIN minimo 4 cifre">
-
-    <button id="createLibraryBtn" class="secondary">➕ Crea libreria online</button>
-
-    <hr>
-
-    <button id="syncBtn" class="secondary">🔄 Sincronizza da archivio online</button>
-    <button id="logoutLibraryBtn" class="danger">🚪 Cambia / scollega libreria</button>
   </section>
 
-  <section class="panel">
-    <h2>📷 Scanner ISBN</h2>
+  <!-- SCANNER -->
+  <section id="page-scanner" class="page">
 
-    <button id="scanBtn" class="primary">📷 Avvia scanner</button>
-    <button id="stopScanBtn" class="danger">⛔ Ferma scanner</button>
+    <section class="panel">
+      <h2>📷 Scanner ISBN</h2>
 
-    <div id="reader"></div>
+      <button id="scanBtn" class="primary">📷 Avvia scanner</button>
+      <button id="stopScanBtn" class="danger">⛔ Ferma scanner</button>
 
-    <div id="scanResult" class="box" hidden>
-      <p><strong>Codice letto:</strong></p>
-      <input type="text" id="scannedCode" placeholder="Codice letto dallo scanner">
-      <button id="useScannedBtn" class="primary">🔎 Cerca questo codice</button>
-    </div>
+      <div id="reader"></div>
+
+      <div id="scanResult" class="box" hidden>
+        <p><strong>Codice letto:</strong></p>
+        <input type="text" id="scannedCode" placeholder="Codice letto dallo scanner">
+        <button id="useScannedBtn" class="primary">🔎 Cerca questo codice</button>
+      </div>
+    </section>
+
   </section>
 
-  <section class="panel">
-    <h2>🔎 Ricerca manuale</h2>
+  <!-- LIBRERIA -->
+  <section id="page-library" class="page">
 
-    <input type="text" id="isbnInput" placeholder="Inserisci ISBN, es: 9788817041324">
-    <button id="searchIsbnBtn" class="primary">🔎 Cerca per ISBN</button>
+    <section class="panel">
+      <h2>📚 La tua libreria</h2>
 
-    <hr>
+      <input type="text" id="search" placeholder="🔎 Cerca per titolo, autore, scaffale o categoria">
 
-    <input type="text" id="manualTitle" placeholder="Titolo libro">
-    <input type="text" id="manualAuthor" placeholder="Autore">
-    <input type="text" id="manualYear" placeholder="Anno">
+      <button id="exportBtn" class="secondary">📤 Esporta CSV</button>
 
-    <button id="searchTitleBtn" class="secondary">🔎 Cerca per titolo</button>
-    <button id="manualBtn" class="secondary">➕ Prepara inserimento manuale</button>
+      <div id="library"></div>
+    </section>
+
   </section>
 
-  <section class="panel">
-    <h2>📖 Libro selezionato</h2>
+  <!-- AGGIUNGI / RICERCA -->
+  <section id="page-add" class="page">
 
-    <div id="bookInfo" class="book-info">
-      Nessun libro selezionato
-    </div>
+    <section class="panel">
+      <h2>🔎 Ricerca manuale</h2>
 
-    <label>📍 Posizione in casa</label>
-    <select id="posizione">
-      <option value="">Seleziona posizione</option>
-      <option value="Salotto">Salotto</option>
-      <option value="Studio">Studio</option>
-      <option value="Camera">Camera</option>
-      <option value="Cameretta">Cameretta</option>
-      <option value="Corridoio">Corridoio</option>
-      <option value="Mansarda">Mansarda</option>
-      <option value="Garage">Garage</option>
-      <option value="Altro">Altro</option>
-    </select>
+      <input type="text" id="isbnInput" placeholder="Inserisci ISBN, es: 9788817041324">
+      <button id="searchIsbnBtn" class="primary">🔎 Cerca per ISBN</button>
 
-    <input type="text" id="posizioneAltro" placeholder="Altra posizione, es: Scaffale alto">
+      <hr>
 
-    <label>🏷️ Categoria</label>
-    <select id="category">
-      <option value="Non indicata">Non indicata</option>
-      <option value="Romanzo">Romanzo</option>
-      <option value="Giallo">Giallo</option>
-      <option value="Thriller">Thriller</option>
-      <option value="Fantasy">Fantasy</option>
-      <option value="Storia">Storia</option>
-      <option value="Biografia">Biografia</option>
-      <option value="Religione">Religione</option>
-      <option value="Tecnico">Tecnico</option>
-      <option value="Informatica">Informatica</option>
-      <option value="Fumetto">Fumetto</option>
-      <option value="Altro">Altro</option>
-    </select>
+      <input type="text" id="manualTitle" placeholder="Titolo libro">
+      <input type="text" id="manualAuthor" placeholder="Autore">
+      <input type="text" id="manualYear" placeholder="Anno">
 
-    <label>📘 Stato lettura</label>
-    <select id="status">
-      <option value="Da leggere">📕 Da leggere</option>
-      <option value="In lettura">📗 In lettura</option>
-      <option value="Letto">📘 Letto</option>
-    </select>
+      <button id="searchTitleBtn" class="secondary">🔎 Cerca per titolo</button>
+      <button id="manualBtn" class="secondary">➕ Prepara inserimento manuale</button>
+    </section>
 
-    <label>⭐ Valutazione</label>
-    <select id="rating">
-      <option value="0">Senza voto</option>
-      <option value="1">⭐</option>
-      <option value="2">⭐⭐</option>
-      <option value="3">⭐⭐⭐</option>
-      <option value="4">⭐⭐⭐⭐</option>
-      <option value="5">⭐⭐⭐⭐⭐</option>
-    </select>
+    <section class="panel">
+      <h2>📖 Libro selezionato</h2>
 
-    <textarea id="notes" placeholder="Note personali"></textarea>
+      <div id="bookInfo" class="book-info">
+        Nessun libro selezionato
+      </div>
 
-    <button id="saveBtn" class="save">💾 Salva libro</button>
+      <label>📍 Posizione in casa</label>
+      <select id="posizione">
+        <option value="">Seleziona posizione</option>
+        <option value="Salotto">Salotto</option>
+        <option value="Studio">Studio</option>
+        <option value="Camera">Camera</option>
+        <option value="Cameretta">Cameretta</option>
+        <option value="Corridoio">Corridoio</option>
+        <option value="Mansarda">Mansarda</option>
+        <option value="Garage">Garage</option>
+        <option value="Altro">Altro</option>
+      </select>
+
+      <input type="text" id="posizioneAltro" placeholder="Altra posizione, es: Scaffale alto">
+
+      <label>🏷️ Categoria</label>
+      <select id="category">
+        <option value="Non indicata">Non indicata</option>
+        <option value="Romanzo">Romanzo</option>
+        <option value="Giallo">Giallo</option>
+        <option value="Thriller">Thriller</option>
+        <option value="Fantasy">Fantasy</option>
+        <option value="Storia">Storia</option>
+        <option value="Biografia">Biografia</option>
+        <option value="Religione">Religione</option>
+        <option value="Tecnico">Tecnico</option>
+        <option value="Informatica">Informatica</option>
+        <option value="Fumetto">Fumetto</option>
+        <option value="Altro">Altro</option>
+      </select>
+
+      <label>📘 Stato lettura</label>
+      <select id="status">
+        <option value="Da leggere">📕 Da leggere</option>
+        <option value="In lettura">📗 In lettura</option>
+        <option value="Letto">📘 Letto</option>
+      </select>
+
+      <label>⭐ Valutazione</label>
+      <select id="rating">
+        <option value="0">Senza voto</option>
+        <option value="1">⭐</option>
+        <option value="2">⭐⭐</option>
+        <option value="3">⭐⭐⭐</option>
+        <option value="4">⭐⭐⭐⭐</option>
+        <option value="5">⭐⭐⭐⭐⭐</option>
+      </select>
+
+      <textarea id="notes" placeholder="Note personali"></textarea>
+
+      <button id="saveBtn" class="save">💾 Salva libro</button>
+    </section>
+
   </section>
 
-  <section class="panel">
-    <h2>📊 Statistiche</h2>
-    <div id="stats" class="stats"></div>
+  <!-- ARCHIVIO ONLINE -->
+  <section id="page-archive" class="page">
 
-    <button id="exportBtn" class="secondary">📤 Esporta CSV</button>
-  </section>
+    <section class="panel">
+      <h2>☁️ Archivio online</h2>
 
-  <section class="panel">
-    <h2>📚 La tua libreria</h2>
+      <h3>🔑 Accedi a una libreria</h3>
 
-    <input type="text" id="search" placeholder="🔎 Cerca nella libreria">
+      <input type="text" id="loginCode" placeholder="Codice libreria, es: MARCO-2026">
+      <input type="password" id="loginPin" placeholder="PIN">
 
-    <div id="library"></div>
+      <button id="loginLibraryBtn" class="primary">🔑 Accedi</button>
+
+      <hr>
+
+      <h3>➕ Crea nuova libreria</h3>
+
+      <input type="text" id="newLibraryName" placeholder="Nome libreria, es: Libreria Marco">
+      <input type="text" id="newLibraryCode" placeholder="Codice libreria, es: MARCO-2026">
+      <input type="password" id="newLibraryPin" placeholder="PIN minimo 4 cifre">
+
+      <button id="createLibraryBtn" class="secondary">➕ Crea libreria online</button>
+
+      <hr>
+
+      <button id="syncBtn" class="secondary">🔄 Sincronizza da archivio online</button>
+      <button id="logoutLibraryBtn" class="danger">🚪 Cambia / scollega libreria</button>
+    </section>
+
   </section>
 
 </main>
 
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="home">🏠<span>Home</span></button>
+  <button class="nav-btn" data-page="scanner">📷<span>Scanner</span></button>
+  <button class="nav-btn" data-page="library">📚<span>Libreria</span></button>
+  <button class="nav-btn" data-page="add">➕<span>Aggiungi</span></button>
+  <button class="nav-btn" data-page="archive">☁️<span>Archivio</span></button>
+</nav>
+
 <script src="app.js"></script>
+
+<script>
+  function openPage(pageName){
+    document.querySelectorAll('.page').forEach(page => {
+      page.classList.remove('active');
+    });
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    const targetPage = document.getElementById('page-' + pageName);
+    const targetButton = document.querySelector('.nav-btn[data-page="' + pageName + '"]');
+
+    if(targetPage){
+      targetPage.classList.add('active');
+    }
+
+    if(targetButton){
+      targetButton.classList.add('active');
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openPage(btn.dataset.page);
+    });
+  });
+
+  document.querySelectorAll('[data-go]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openPage(btn.dataset.go);
+    });
+  });
+</script>
 
 </body>
 </html>
