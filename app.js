@@ -1,13 +1,28 @@
-let library = JSON.parse(localStorage.getItem('library')) || [];
 let currentBook = null;
 let html5QrCode = null;
+
 const GOOGLE_BOOKS_API_KEY = 'AIzaSyB6fg392aV7JjXI9IfCo0ROuiOgvH12QC4';
+const CLOUD_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfNt2NS4v_e-EvWflkrG_MZ-7jBe6VcDEx5t98odOT0KmbRCN94ksMCCYiNLGNU9KQqA/exec';
+
+let cloudSession = JSON.parse(localStorage.getItem('libreriaCasaCloudSession')) || null;
+let library = [];
 
 const $ = id => document.getElementById(id);
 
 const libraryDiv = $('library');
 const searchInput = $('search');
 const statsDiv = $('stats');
+
+const cloudStatus = $('cloudStatus');
+const loginCode = $('loginCode');
+const loginPin = $('loginPin');
+const loginLibraryBtn = $('loginLibraryBtn');
+const newLibraryName = $('newLibraryName');
+const newLibraryCode = $('newLibraryCode');
+const newLibraryPin = $('newLibraryPin');
+const createLibraryBtn = $('createLibraryBtn');
+const syncBtn = $('syncBtn');
+const logoutLibraryBtn = $('logoutLibraryBtn');
 
 const scanBtn = $('scanBtn');
 const stopScanBtn = $('stopScanBtn');
@@ -33,6 +48,46 @@ const rating = $('rating');
 const notes = $('notes');
 const saveBtn = $('saveBtn');
 const exportBtn = $('exportBtn');
+
+function getLibraryStorageKey(){
+  if(cloudSession && cloudSession.codiceLibreria){
+    return 'library_' + cloudSession.codiceLibreria;
+  }
+
+  return 'library_offline';
+}
+
+function loadLibrary(){
+  const key = getLibraryStorageKey();
+  let saved = JSON.parse(localStorage.getItem(key) || 'null');
+
+  if(!saved && key === 'library_offline'){
+    saved = JSON.parse(localStorage.getItem('library') || '[]');
+  }
+
+  library = Array.isArray(saved) ? saved : [];
+}
+
+function saveLibraryLocal(){
+  localStorage.setItem(getLibraryStorageKey(), JSON.stringify(library));
+}
+
+function updateCloudStatus(){
+  if(!cloudSession){
+    cloudStatus.innerHTML = `
+      <strong>Modalità locale</strong><br>
+      I libri vengono salvati solo su questo dispositivo.<br>
+      Accedi o crea una libreria online per sincronizzarli.
+    `;
+    return;
+  }
+
+  cloudStatus.innerHTML = `
+    <strong>Libreria online collegata</strong><br>
+    Nome: <strong>${safe(cloudSession.nomeLibreria)}</strong><br>
+    Codice: <strong>${safe(cloudSession.codiceLibreria)}</strong>
+  `;
+}
 
 function cleanCode(code){
   return String(code || '')
@@ -160,7 +215,7 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
   }
 
   return {
-    id: Date.now(),
+    id: String(Date.now()),
     isbn: isbn,
     title: volumeInfo.title || 'Titolo sconosciuto',
     author: (volumeInfo.authors || ['Autore sconosciuto']).join(', '),
@@ -205,6 +260,75 @@ async function searchGoogleBooks(query){
   return null;
 }
 
+async function searchOpenLibraryByIsbn(isbn){
+  try{
+    let response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+
+    if(response.ok){
+      const data = await response.json();
+
+      let author = 'Autore sconosciuto';
+
+      if(data.authors && data.authors.length > 0){
+        try{
+          const authorResponse = await fetch(`https://openlibrary.org${data.authors[0].key}.json`);
+          const authorData = await authorResponse.json();
+          author = authorData.name || author;
+        }catch(e){}
+      }
+
+      let cover = '';
+
+      if(data.covers && data.covers.length > 0){
+        cover = `https://covers.openlibrary.org/b/id/${data.covers[0]}-M.jpg`;
+      }else{
+        cover = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+      }
+
+      return {
+        id: String(Date.now()),
+        isbn: isbn,
+        title: data.title || 'Titolo sconosciuto',
+        author: author,
+        year: data.publish_date || 'Anno non disponibile',
+        cover: cover,
+        source: 'Open Library',
+        place: '',
+        category: '',
+        status: '',
+        rating: 0,
+        notes: ''
+      };
+    }
+  }catch(e){}
+
+  try{
+    const response = await fetch(`https://openlibrary.org/search.json?isbn=${encodeURIComponent(isbn)}`);
+    const data = await response.json();
+
+    if(data.docs && data.docs.length > 0){
+      const doc = data.docs[0];
+
+      return {
+        id: String(Date.now()),
+        isbn: isbn,
+        title: doc.title || 'Titolo sconosciuto',
+        author: (doc.author_name || ['Autore sconosciuto']).join(', '),
+        year: doc.first_publish_year || 'Anno non disponibile',
+        cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+        source: 'Open Library',
+        place: '',
+        category: '',
+        status: '',
+        rating: 0,
+        notes: ''
+      };
+    }
+  }catch(e){}
+
+  return null;
+}
+
 async function searchBookByIsbn(rawCode){
   const isbn = cleanCode(rawCode);
 
@@ -231,7 +355,6 @@ async function searchBookByIsbn(rawCode){
   setLoading('Ricerca libro nei cataloghi online...');
 
   try{
-
     let volume = await searchGoogleBooks(`isbn:${isbn}`);
 
     if(!volume){
@@ -322,7 +445,7 @@ async function searchBookByTitle(){
       const doc = data.docs[0];
 
       currentBook = {
-        id: Date.now(),
+        id: String(Date.now()),
         isbn: doc.isbn && doc.isbn.length ? doc.isbn[0] : 'Manuale',
         title: doc.title || title,
         author: (doc.author_name || [author || 'Autore sconosciuto']).join(', '),
@@ -362,7 +485,7 @@ function prepareManualBook(){
   }
 
   currentBook = {
-    id: Date.now(),
+    id: String(Date.now()),
     isbn: isbn || 'Manuale',
     title: title,
     author: author || 'Autore non indicato',
@@ -377,6 +500,272 @@ function prepareManualBook(){
   };
 
   showBook();
+}
+
+function cloudRequest(params){
+  return new Promise((resolve, reject) => {
+    const callbackName = 'libreriaCasaCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Tempo scaduto nel collegamento all’archivio online'));
+    }, 20000);
+
+    function cleanup(){
+      clearTimeout(timeout);
+      if(script.parentNode){
+        script.parentNode.removeChild(script);
+      }
+      delete window[callbackName];
+    }
+
+    window[callbackName] = data => {
+      cleanup();
+      resolve(data);
+    };
+
+    const query = new URLSearchParams({
+      ...params,
+      callback: callbackName,
+      t: Date.now()
+    });
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Errore collegamento archivio online'));
+    };
+
+    script.src = CLOUD_SCRIPT_URL + '?' + query.toString();
+    document.body.appendChild(script);
+  });
+}
+
+function getAuthParams(){
+  if(!cloudSession){
+    return null;
+  }
+
+  return {
+    codiceLibreria: cloudSession.codiceLibreria,
+    pin: cloudSession.pin
+  };
+}
+
+async function createOnlineLibrary(){
+  const nome = newLibraryName.value.trim();
+  const codice = newLibraryCode.value.trim();
+  const pin = newLibraryPin.value.trim();
+
+  if(!nome || !codice || !pin){
+    alert('Compila nome libreria, codice libreria e PIN.');
+    return;
+  }
+
+  if(pin.length < 4){
+    alert('Il PIN deve avere almeno 4 cifre.');
+    return;
+  }
+
+  try{
+    cloudStatus.innerHTML = '⏳ Creazione libreria online...';
+
+    const result = await cloudRequest({
+      action: 'createLibrary',
+      nomeLibreria: nome,
+      codiceLibreria: codice,
+      pin: pin
+    });
+
+    if(!result.ok){
+      updateCloudStatus();
+      alert(result.error || 'Errore nella creazione della libreria.');
+      return;
+    }
+
+    cloudSession = {
+      codiceLibreria: result.codiceLibreria,
+      nomeLibreria: result.nomeLibreria,
+      pin: pin
+    };
+
+    localStorage.setItem('libreriaCasaCloudSession', JSON.stringify(cloudSession));
+
+    loadLibrary();
+    updateCloudStatus();
+    renderLibrary(searchInput.value);
+    updateStats();
+
+    newLibraryName.value = '';
+    newLibraryCode.value = '';
+    newLibraryPin.value = '';
+
+    alert('✅ Libreria online creata e collegata.');
+
+  }catch(e){
+    updateCloudStatus();
+    alert('Errore collegamento archivio online. Riprova.');
+  }
+}
+
+async function loginOnlineLibrary(){
+  const codice = loginCode.value.trim();
+  const pin = loginPin.value.trim();
+
+  if(!codice || !pin){
+    alert('Inserisci codice libreria e PIN.');
+    return;
+  }
+
+  try{
+    cloudStatus.innerHTML = '⏳ Accesso alla libreria online...';
+
+    const result = await cloudRequest({
+      action: 'login',
+      codiceLibreria: codice,
+      pin: pin
+    });
+
+    if(!result.ok){
+      updateCloudStatus();
+      alert(result.error || 'Codice o PIN non corretto.');
+      return;
+    }
+
+    cloudSession = {
+      codiceLibreria: result.codiceLibreria,
+      nomeLibreria: result.nomeLibreria,
+      pin: pin
+    };
+
+    localStorage.setItem('libreriaCasaCloudSession', JSON.stringify(cloudSession));
+
+    loadLibrary();
+    updateCloudStatus();
+    renderLibrary(searchInput.value);
+    updateStats();
+
+    loginCode.value = '';
+    loginPin.value = '';
+
+    alert('✅ Accesso effettuato. Ora puoi sincronizzare i libri dall’archivio online.');
+
+  }catch(e){
+    updateCloudStatus();
+    alert('Errore collegamento archivio online. Riprova.');
+  }
+}
+
+function logoutOnlineLibrary(){
+  const conferma = confirm('Vuoi scollegare questa libreria online da questo dispositivo? I dati online non verranno cancellati.');
+
+  if(!conferma){
+    return;
+  }
+
+  cloudSession = null;
+  localStorage.removeItem('libreriaCasaCloudSession');
+
+  loadLibrary();
+  updateCloudStatus();
+  renderLibrary(searchInput.value);
+  updateStats();
+
+  alert('Libreria online scollegata. Ora sei in modalità locale.');
+}
+
+async function saveBookOnline(book){
+  const auth = getAuthParams();
+
+  if(!auth){
+    return {
+      ok: false,
+      offline: true,
+      error: 'Nessuna libreria online collegata'
+    };
+  }
+
+  return await cloudRequest({
+    action: 'saveBook',
+    ...auth,
+    id: book.id,
+    isbn: book.isbn || '',
+    title: book.title || '',
+    author: book.author || '',
+    year: book.year || '',
+    cover: book.cover || '',
+    place: book.place || '',
+    category: book.category || '',
+    status: book.status || '',
+    rating: book.rating || 0,
+    notes: book.notes || ''
+  });
+}
+
+async function syncFromCloud(){
+  const auth = getAuthParams();
+
+  if(!auth){
+    alert('Prima accedi o crea una libreria online.');
+    return;
+  }
+
+  try{
+    cloudStatus.innerHTML = '⏳ Sincronizzazione in corso...';
+
+    const result = await cloudRequest({
+      action: 'listBooks',
+      ...auth
+    });
+
+    if(!result.ok){
+      updateCloudStatus();
+      alert(result.error || 'Errore durante la sincronizzazione.');
+      return;
+    }
+
+    library = (result.books || []).map(book => ({
+      id: String(book.id || Date.now()),
+      isbn: book.isbn || '',
+      title: book.title || '',
+      author: book.author || '',
+      year: book.year || '',
+      cover: book.cover || '',
+      place: book.place || '',
+      category: book.category || 'Non indicata',
+      status: book.status || 'Da leggere',
+      rating: Number(book.rating || 0),
+      notes: book.notes || '',
+      source: book.source || 'Archivio online'
+    }));
+
+    saveLibraryLocal();
+    updateCloudStatus();
+    renderLibrary(searchInput.value);
+    updateStats();
+
+    alert('✅ Sincronizzazione completata. Libri scaricati: ' + library.length);
+
+  }catch(e){
+    updateCloudStatus();
+    alert('Errore collegamento archivio online. Riprova.');
+  }
+}
+
+async function deleteBookOnline(id){
+  const auth = getAuthParams();
+
+  if(!auth){
+    return;
+  }
+
+  try{
+    await cloudRequest({
+      action: 'deleteBook',
+      ...auth,
+      id: id
+    });
+  }catch(e){}
 }
 
 async function stopScanner(){
@@ -455,7 +844,7 @@ async function startScanner(){
   }
 }
 
-function saveCurrentBook(){
+async function saveCurrentBook(){
   if(!currentBook){
     alert('Prima scannerizza, cerca o inserisci un libro.');
     return;
@@ -477,7 +866,7 @@ function saveCurrentBook(){
     currentBook.year = year;
   }
 
-  currentBook.id = Date.now();
+  currentBook.id = String(Date.now());
   currentBook.place = getPositionValue();
   currentBook.category = category.value || 'Non indicata';
   currentBook.status = statusSelect.value || 'Da leggere';
@@ -488,7 +877,7 @@ function saveCurrentBook(){
     book.isbn &&
     currentBook.isbn &&
     book.isbn !== 'Manuale' &&
-    book.isbn === currentBook.isbn
+    String(book.isbn) === String(currentBook.isbn)
   );
 
   if(sameBook){
@@ -499,9 +888,28 @@ function saveCurrentBook(){
     }
   }
 
-  library.push({...currentBook});
+  const bookToSave = {...currentBook};
 
-  localStorage.setItem('library', JSON.stringify(library));
+  library.push(bookToSave);
+  saveLibraryLocal();
+
+  let onlineMessage = '';
+
+  if(cloudSession){
+    try{
+      const result = await saveBookOnline(bookToSave);
+
+      if(result.ok){
+        onlineMessage = '\n☁️ Salvato anche online.';
+      }else{
+        onlineMessage = '\n⚠️ Salvato sul dispositivo, ma non online.';
+      }
+    }catch(e){
+      onlineMessage = '\n⚠️ Salvato sul dispositivo, ma non online.';
+    }
+  }else{
+    onlineMessage = '\n📱 Salvato solo su questo dispositivo.';
+  }
 
   currentBook = null;
 
@@ -525,7 +933,7 @@ function saveCurrentBook(){
   renderLibrary(searchInput.value);
   updateStats();
 
-  alert('✅ Libro salvato nella tua libreria.');
+  alert('✅ Libro salvato nella tua libreria.' + onlineMessage);
 }
 
 function renderLibrary(filter = ''){
@@ -602,7 +1010,8 @@ function updateStats(){
   `;
 }
 
-function deleteBook(index){
+async function deleteBook(index){
+  const book = library[index];
   const confirmDelete = confirm('Vuoi eliminare questo libro?');
 
   if(!confirmDelete){
@@ -610,9 +1019,13 @@ function deleteBook(index){
   }
 
   library.splice(index,1);
-  localStorage.setItem('library', JSON.stringify(library));
+  saveLibraryLocal();
   renderLibrary(searchInput.value);
   updateStats();
+
+  if(book && book.id && cloudSession){
+    await deleteBookOnline(book.id);
+  }
 }
 
 function exportCSV(){
@@ -669,6 +1082,11 @@ function exportCSV(){
   URL.revokeObjectURL(url);
 }
 
+createLibraryBtn.addEventListener('click', createOnlineLibrary);
+loginLibraryBtn.addEventListener('click', loginOnlineLibrary);
+syncBtn.addEventListener('click', syncFromCloud);
+logoutLibraryBtn.addEventListener('click', logoutOnlineLibrary);
+
 scanBtn.addEventListener('click', startScanner);
 stopScanBtn.addEventListener('click', stopScanner);
 
@@ -705,5 +1123,7 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
+loadLibrary();
+updateCloudStatus();
 renderLibrary();
 updateStats();
