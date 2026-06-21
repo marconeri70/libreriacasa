@@ -1315,6 +1315,7 @@ function renderLibrary(filter = ''){
             book.cover
             ? `<img src="${safe(book.cover)}" alt="${safe(book.title)}">`
             : `<div class="cover-placeholder">📚</div>`
+            renderLoans();
           }
 
           <div>
