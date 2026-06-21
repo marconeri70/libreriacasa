@@ -22,6 +22,36 @@
 <main>
 
   <section class="panel">
+    <h2>☁️ Archivio online</h2>
+
+    <div id="cloudStatus" class="box">
+      Nessuna libreria online collegata.
+    </div>
+
+    <h3>🔑 Accedi a una libreria</h3>
+
+    <input type="text" id="loginCode" placeholder="Codice libreria, es: MARCO-2026">
+    <input type="password" id="loginPin" placeholder="PIN">
+
+    <button id="loginLibraryBtn" class="primary">🔑 Accedi</button>
+
+    <hr>
+
+    <h3>➕ Crea nuova libreria</h3>
+
+    <input type="text" id="newLibraryName" placeholder="Nome libreria, es: Libreria Marco">
+    <input type="text" id="newLibraryCode" placeholder="Codice libreria, es: MARCO-2026">
+    <input type="password" id="newLibraryPin" placeholder="PIN minimo 4 cifre">
+
+    <button id="createLibraryBtn" class="secondary">➕ Crea libreria online</button>
+
+    <hr>
+
+    <button id="syncBtn" class="secondary">🔄 Sincronizza da archivio online</button>
+    <button id="logoutLibraryBtn" class="danger">🚪 Cambia / scollega libreria</button>
+  </section>
+
+  <section class="panel">
     <h2>📷 Scanner ISBN</h2>
 
     <button id="scanBtn" class="primary">📷 Avvia scanner</button>
