@@ -180,7 +180,15 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
 }
 
 async function searchGoogleBooks(query){
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`;
+  if(
+    !GOOGLE_BOOKS_API_KEY ||
+    GOOGLE_BOOKS_API_KEY === 'INCOLLA_QUI_LA_TUA_CHIAVE_GOOGLE_BOOKS'
+  ){
+    return null;
+  }
+
+  const url =
+    `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5&key=${GOOGLE_BOOKS_API_KEY}`;
 
   const response = await fetch(url);
 
@@ -193,75 +201,6 @@ async function searchGoogleBooks(query){
   if(data.totalItems && data.items && data.items.length > 0){
     return data.items[0].volumeInfo;
   }
-
-  return null;
-}
-
-async function searchOpenLibraryByIsbn(isbn){
-  try{
-    let response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
-
-    if(response.ok){
-      const data = await response.json();
-
-      let author = 'Autore sconosciuto';
-
-      if(data.authors && data.authors.length > 0){
-        try{
-          const authorResponse = await fetch(`https://openlibrary.org${data.authors[0].key}.json`);
-          const authorData = await authorResponse.json();
-          author = authorData.name || author;
-        }catch(e){}
-      }
-
-      let cover = '';
-
-      if(data.covers && data.covers.length > 0){
-        cover = `https://covers.openlibrary.org/b/id/${data.covers[0]}-M.jpg`;
-      }else{
-        cover = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
-      }
-
-      return {
-        id: Date.now(),
-        isbn: isbn,
-        title: data.title || 'Titolo sconosciuto',
-        author: author,
-        year: data.publish_date || 'Anno non disponibile',
-        cover: cover,
-        source: 'Open Library',
-        place: '',
-        category: '',
-        status: '',
-        rating: 0,
-        notes: ''
-      };
-    }
-  }catch(e){}
-
-  try{
-    const response = await fetch(`https://openlibrary.org/search.json?isbn=${encodeURIComponent(isbn)}`);
-    const data = await response.json();
-
-    if(data.docs && data.docs.length > 0){
-      const doc = data.docs[0];
-
-      return {
-        id: Date.now(),
-        isbn: isbn,
-        title: doc.title || 'Titolo sconosciuto',
-        author: (doc.author_name || ['Autore sconosciuto']).join(', '),
-        year: doc.first_publish_year || 'Anno non disponibile',
-        cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
-        source: 'Open Library',
-        place: '',
-        category: '',
-        status: '',
-        rating: 0,
-        notes: ''
-      };
-    }
-  }catch(e){}
 
   return null;
 }
