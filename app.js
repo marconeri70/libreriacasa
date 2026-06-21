@@ -50,6 +50,7 @@ const rating = $('rating');
 const notes = $('notes');
 const saveBtn = $('saveBtn');
 const exportBtn = $('exportBtn');
+
 const refreshLoansBtn = $('refreshLoansBtn');
 const loanedBooksDiv = $('loanedBooks');
 const loadRequestsBtn = $('loadRequestsBtn');
@@ -181,6 +182,16 @@ function setLoading(message){
   `;
 }
 
+function emptyLoanFields(){
+  return {
+    prestatoA: '',
+    dataPrestito: '',
+    dataPrevistaRestituzione: '',
+    restituito: '',
+    dataRestituzione: ''
+  };
+}
+
 function showBook(){
   if(!currentBook){
     $('bookInfo').innerHTML = 'Nessun libro selezionato';
@@ -220,16 +231,6 @@ function showNotIsbnMessage(code){
     <p>Probabilmente è un codice ISSN, una collana da edicola o un codice non presente nei cataloghi libri.</p>
     <p>Puoi cercare il libro per titolo oppure inserirlo manualmente.</p>
   `;
-}
-
-function emptyLoanFields(){
-  return {
-    prestatoA: '',
-    dataPrestito: '',
-    dataPrevistaRestituzione: '',
-    restituito: '',
-    dataRestituzione: ''
-  };
 }
 
 function makeBookFromGoogle(volumeInfo, fallbackIsbn){
@@ -645,6 +646,7 @@ async function createOnlineLibrary(){
     loadLibrary();
     updateCloudStatus();
     renderLibrary(searchInput.value);
+    renderLoans();
     updateStats();
 
     newLibraryName.value = '';
@@ -694,6 +696,7 @@ async function loginOnlineLibrary(){
     loadLibrary();
     updateCloudStatus();
     renderLibrary(searchInput.value);
+    renderLoans();
     updateStats();
 
     loginCode.value = '';
@@ -720,6 +723,7 @@ function logoutOnlineLibrary(){
   loadLibrary();
   updateCloudStatus();
   renderLibrary(searchInput.value);
+  renderLoans();
   updateStats();
 
   alert('Libreria online scollegata. Ora sei in modalità locale.');
@@ -803,6 +807,7 @@ async function syncFromCloud(){
     saveLibraryLocal();
     updateCloudStatus();
     renderLibrary(searchInput.value);
+    renderLoans();
     updateStats();
 
     alert('✅ Sincronizzazione completata. Libri scaricati: ' + library.length);
@@ -1085,6 +1090,7 @@ async function markBookLoaned(index){
 
   saveLibraryLocal();
   renderLibrary(searchInput.value);
+  renderLoans();
   updateStats();
   closeBookDetail();
 
@@ -1113,6 +1119,7 @@ async function markBookReturned(index){
 
   saveLibraryLocal();
   renderLibrary(searchInput.value);
+  renderLoans();
   updateStats();
   closeBookDetail();
 
@@ -1266,6 +1273,7 @@ async function saveCurrentBook(){
   notes.value = '';
 
   renderLibrary(searchInput.value);
+  renderLoans();
   updateStats();
 
   alert(
@@ -1301,6 +1309,7 @@ function renderLibrary(filter = ''){
 
   if(books.length === 0){
     libraryDiv.innerHTML = '<p>Nessun libro presente.</p>';
+    renderLoans();
     return;
   }
 
@@ -1315,7 +1324,6 @@ function renderLibrary(filter = ''){
             book.cover
             ? `<img src="${safe(book.cover)}" alt="${safe(book.title)}">`
             : `<div class="cover-placeholder">📚</div>`
-            renderLoans();
           }
 
           <div>
@@ -1339,6 +1347,8 @@ function renderLibrary(filter = ''){
       </div>
     `;
   });
+
+  renderLoans();
 }
 
 function updateStats(){
@@ -1366,6 +1376,7 @@ async function deleteBook(index){
   library.splice(index,1);
   saveLibraryLocal();
   renderLibrary(searchInput.value);
+  renderLoans();
   updateStats();
 
   if(book && book.id && cloudSession){
@@ -1593,6 +1604,14 @@ document.addEventListener('click', e => {
   }
 });
 
+if(refreshLoansBtn){
+  refreshLoansBtn.addEventListener('click', renderLoans);
+}
+
+if(loadRequestsBtn){
+  loadRequestsBtn.addEventListener('click', loadRequests);
+}
+
 exportBtn.addEventListener('click', exportCSV);
 
 if('serviceWorker' in navigator){
@@ -1602,4 +1621,5 @@ if('serviceWorker' in navigator){
 loadLibrary();
 updateCloudStatus();
 renderLibrary();
+renderLoans();
 updateStats();
