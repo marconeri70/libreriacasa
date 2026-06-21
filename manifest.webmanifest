@@ -1,10 +1,31 @@
 {
   "name": "Libreria Casa",
-  "short_name": "Libreria",
-  "description": "App per catalogare la libreria di casa",
+  "short_name": "Libreria Casa",
+  "description": "App per catalogare la libreria di casa scannerizzando i codici ISBN dei libri.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f2f2f2",
+  "orientation": "portrait",
+  "background_color": "#eef2f7",
   "theme_color": "#0d47a1",
-  "icons": []
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
