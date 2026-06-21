@@ -2,7 +2,7 @@ let currentBook = null;
 let html5QrCode = null;
 let editingBookIndex = null;
 
-const GOOGLE_BOOKS_API_KEY = 'AIzaSyB6fg392aV7JjXI9IfCo0ROuiOgvH12QC4';
+const GOOGLE_BOOKS_API_KEY = 'INCOLLA_QUI_LA_TUA_CHIAVE_GOOGLE_BOOKS';
 
 const CLOUD_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfNt2NS4v_e-EvWflkrG_MZ-7jBe6VcDEx5t98odOT0KmbRCN94ksMCCYiNLGNU9KQqA/exec';
 
@@ -48,6 +48,7 @@ const category = $('category');
 const statusSelect = $('status');
 const rating = $('rating');
 const notes = $('notes');
+const trama = $('trama');
 const saveBtn = $('saveBtn');
 const exportBtn = $('exportBtn');
 
@@ -136,6 +137,27 @@ function safe(value){
     .replace(/'/g,'&#039;');
 }
 
+function stripHtml(text){
+  return String(text || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function shortText(text, maxLength = 160){
+  const value = stripHtml(text);
+
+  if(value.length <= maxLength){
+    return value;
+  }
+
+  return value.substring(0, maxLength).trim() + '...';
+}
+
 function normalizeCover(url){
   if(!url){
     return '';
@@ -201,10 +223,7 @@ function suggestCategoryFromText(text){
     return 'Biografia';
   }
 
-  if(
-    value.includes('thriller') ||
-    value.includes('suspense')
-  ){
+  if(value.includes('thriller') || value.includes('suspense')){
     return 'Thriller';
   }
 
@@ -218,10 +237,7 @@ function suggestCategoryFromText(text){
     return 'Giallo';
   }
 
-  if(
-    value.includes('fantasy') ||
-    value.includes('fantastico')
-  ){
+  if(value.includes('fantasy') || value.includes('fantastico')){
     return 'Fantasy';
   }
 
@@ -320,6 +336,10 @@ function showBook(){
   manualAuthor.value = currentBook.author || '';
   manualYear.value = currentBook.year || '';
 
+  if(trama){
+    trama.value = currentBook.trama || '';
+  }
+
   setCategorySelect(currentBook.category || 'Non indicata');
 
   $('bookInfo').innerHTML = `
@@ -335,6 +355,7 @@ function showBook(){
         <p>✍️ ${safe(currentBook.author)}</p>
         <p>📅 ${safe(currentBook.year)}</p>
         <p>🏷️ Categoria suggerita: ${safe(currentBook.category || 'Non indicata')}</p>
+        <p>📜 Trama: ${currentBook.trama ? 'Disponibile' : 'Non disponibile online'}</p>
         <p>🔢 Codice: ${safe(currentBook.isbn || 'Manuale')}</p>
         <p>🌐 Fonte: ${safe(currentBook.source || 'Manuale')}</p>
       </div>
@@ -364,11 +385,13 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
     isbn = isbn13?.identifier || isbn10?.identifier || isbn;
   }
 
+  const description = stripHtml(volumeInfo.description || '');
+
   const categoryText = [
     volumeInfo.title || '',
     volumeInfo.subtitle || '',
     (volumeInfo.categories || []).join(' '),
-    volumeInfo.description || ''
+    description
   ].join(' ');
 
   return {
@@ -388,6 +411,7 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
     status: '',
     rating: 0,
     notes: '',
+    trama: description,
     ...emptyLoanFields()
   };
 }
@@ -443,11 +467,17 @@ async function searchOpenLibraryByIsbn(isbn){
         cover = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
       }
 
+      const description = stripHtml(
+        data.description
+        ? String(data.description.value || data.description)
+        : ''
+      );
+
       const categoryText = [
         data.title || '',
         data.subtitle || '',
         data.subjects ? data.subjects.join(' ') : '',
-        data.description ? String(data.description.value || data.description) : ''
+        description
       ].join(' ');
 
       return {
@@ -463,6 +493,7 @@ async function searchOpenLibraryByIsbn(isbn){
         status: '',
         rating: 0,
         notes: '',
+        trama: description,
         ...emptyLoanFields()
       };
     }
@@ -495,6 +526,7 @@ async function searchOpenLibraryByIsbn(isbn){
         status: '',
         rating: 0,
         notes: '',
+        trama: '',
         ...emptyLoanFields()
       };
     }
@@ -566,7 +598,7 @@ async function searchBookByIsbn(rawCode){
       <p>ISBN letto:</p>
       <p><strong>${safe(isbn)}</strong></p>
       <p>Lo scanner ha letto correttamente il codice, ma il libro non è stato trovato automaticamente.</p>
-      <p>Puoi salvarlo comunque: compila titolo, autore e anno, poi premi <strong>“Prepara inserimento manuale”</strong>.</p>
+      <p>Puoi salvarlo comunque: compila titolo, autore, anno e trama, poi premi <strong>“Prepara inserimento manuale”</strong>.</p>
     `;
 
     if(typeof openPage === 'function'){
@@ -576,7 +608,7 @@ async function searchBookByIsbn(rawCode){
     manualTitle.focus();
 
     alert(
-      'Libro non trovato nei cataloghi online.\n\nLo scanner ha letto correttamente l’ISBN.\n\nInserisci titolo, autore e anno, poi premi “Prepara inserimento manuale”.'
+      'Libro non trovato nei cataloghi online.\n\nLo scanner ha letto correttamente l’ISBN.\n\nPuoi inserirlo manualmente.'
     );
 
   }catch(e){
@@ -655,6 +687,7 @@ async function searchBookByTitle(){
         status: '',
         rating: 0,
         notes: '',
+        trama: trama ? trama.value.trim() : '',
         ...emptyLoanFields()
       };
 
@@ -677,6 +710,7 @@ function prepareManualBook(){
   const author = manualAuthor.value.trim();
   const year = manualYear.value.trim();
   const isbn = isbnInput.value.trim() || scannedCode.value.trim() || 'Manuale';
+  const tramaManuale = trama ? trama.value.trim() : '';
 
   if(!title){
     alert('Inserisci almeno il titolo del libro.');
@@ -692,10 +726,11 @@ function prepareManualBook(){
     cover: '',
     source: 'Manuale',
     place: '',
-    category: suggestCategoryFromText([title, author].join(' ')),
+    category: suggestCategoryFromText([title, author, tramaManuale].join(' ')),
     status: '',
     rating: 0,
     notes: '',
+    trama: tramaManuale,
     ...emptyLoanFields()
   };
 
@@ -902,6 +937,7 @@ async function saveBookOnline(book){
     status: book.status || '',
     rating: book.rating || 0,
     notes: book.notes || '',
+    trama: book.trama || '',
     prestatoA: book.prestatoA || '',
     dataPrestito: book.dataPrestito || '',
     dataPrevistaRestituzione: book.dataPrevistaRestituzione || '',
@@ -944,6 +980,7 @@ async function syncFromCloud(){
       status: book.status || 'Da leggere',
       rating: Number(book.rating || 0),
       notes: book.notes || '',
+      trama: book.trama || '',
       prestatoA: book.prestatoA || '',
       dataPrestito: book.dataPrestito || '',
       dataPrevistaRestituzione: book.dataPrevistaRestituzione || '',
@@ -1129,6 +1166,15 @@ function openBookDetail(index){
 
           <hr>
 
+          <h3>📜 Trama</h3>
+          ${
+            book.trama
+            ? `<p class="book-plot">${safe(book.trama)}</p>`
+            : `<p class="book-plot empty">Trama non disponibile.</p>`
+          }
+
+          <hr>
+
           <p>🤝 <strong>Prestito:</strong> ${loanStatusText(book)}</p>
           ${book.dataPrevistaRestituzione ? `<p>🔔 <strong>Restituzione prevista:</strong> ${safe(book.dataPrevistaRestituzione)}</p>` : ''}
           ${book.dataRestituzione ? `<p>✅ <strong>Restituito il:</strong> ${safe(book.dataRestituzione)}</p>` : ''}
@@ -1195,6 +1241,10 @@ function startEditBook(index){
   statusSelect.value = book.status || 'Da leggere';
   rating.value = String(book.rating || 0);
   notes.value = book.notes || '';
+
+  if(trama){
+    trama.value = book.trama || '';
+  }
 
   showBook();
   closeBookDetail();
@@ -1322,6 +1372,7 @@ async function saveCurrentBook(){
   const title = manualTitle.value.trim();
   const author = manualAuthor.value.trim();
   const year = manualYear.value.trim();
+  const tramaText = trama ? trama.value.trim() : '';
 
   if(title){
     currentBook.title = title;
@@ -1344,6 +1395,7 @@ async function saveCurrentBook(){
   currentBook.status = statusSelect.value || 'Da leggere';
   currentBook.rating = Number(rating.value || 0);
   currentBook.notes = notes.value.trim();
+  currentBook.trama = tramaText || currentBook.trama || '';
 
   currentBook.prestatoA = currentBook.prestatoA || '';
   currentBook.dataPrestito = currentBook.dataPrestito || '';
@@ -1421,6 +1473,10 @@ async function saveCurrentBook(){
   rating.value = '0';
   notes.value = '';
 
+  if(trama){
+    trama.value = '';
+  }
+
   renderLibrary(searchInput.value);
   renderLoans();
   updateStats();
@@ -1448,6 +1504,7 @@ function renderLibrary(filter = ''){
         book.category,
         book.status,
         book.notes,
+        book.trama,
         book.prestatoA
       ].join(' ').toLowerCase();
 
@@ -1484,6 +1541,7 @@ function renderLibrary(filter = ''){
             <p>📘 ${safe(book.status || 'Da leggere')}</p>
             <p>⭐ ${safe(ratingStars(book.rating))}</p>
             <p>🔢 ${safe(book.isbn || 'Manuale')}</p>
+            ${book.trama ? `<p>📜 Trama disponibile</p>` : `<p>📜 Trama non disponibile</p>`}
             ${book.notes ? `<p>📝 ${safe(book.notes)}</p>` : ''}
             <p>🤝 ${loanStatusText(book)}</p>
           </div>
@@ -1634,6 +1692,7 @@ function exportCSV(){
     'Stato',
     'Valutazione',
     'Note',
+    'Trama',
     'Prestato a',
     'Data prestito',
     'Data prevista restituzione',
@@ -1651,6 +1710,7 @@ function exportCSV(){
     book.status,
     book.rating,
     book.notes,
+    book.trama,
     book.prestatoA,
     book.dataPrestito,
     book.dataPrevistaRestituzione,
@@ -1702,7 +1762,7 @@ searchTitleBtn.addEventListener('click', searchBookByTitle);
 
 manualBtn.addEventListener('click', () => {
   prepareManualBook();
-  alert('Inserimento manuale preparato. Ora puoi scegliere posizione, categoria e salvare.');
+  alert('Inserimento manuale preparato. Ora puoi scegliere posizione, categoria, trama e salvare.');
 });
 
 saveBtn.addEventListener('click', saveCurrentBook);
