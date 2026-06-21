@@ -1254,7 +1254,31 @@ searchInput.addEventListener('input', e => {
 
 libraryDiv.addEventListener('click', e => {
   if(e.target.dataset.delete !== undefined){
+    e.stopPropagation();
     deleteBook(Number(e.target.dataset.delete));
+    return;
+  }
+
+  const openTarget = e.target.closest('[data-open]');
+
+  if(openTarget){
+    openBookDetail(Number(openTarget.dataset.open));
+  }
+});
+
+document.addEventListener('click', e => {
+  if(e.target.dataset.closeDetail !== undefined){
+    closeBookDetail();
+  }
+
+  if(e.target.dataset.detailEdit !== undefined){
+    startEditBook(Number(e.target.dataset.detailEdit));
+  }
+
+  if(e.target.dataset.detailDelete !== undefined){
+    const index = Number(e.target.dataset.detailDelete);
+    closeBookDetail();
+    deleteBook(index);
   }
 });
 
