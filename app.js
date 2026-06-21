@@ -2,7 +2,8 @@ let currentBook = null;
 let html5QrCode = null;
 let editingBookIndex = null;
 
-const GOOGLE_BOOKS_API_KEY = 'AIzaSyB6fg392aV7JjXI9IfCo0ROuiOgvH12QC4';
+const GOOGLE_BOOKS_API_KEY = 'INCOLLA_QUI_LA_TUA_CHIAVE_GOOGLE_BOOKS';
+
 const CLOUD_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfNt2NS4v_e-EvWflkrG_MZ-7jBe6VcDEx5t98odOT0KmbRCN94ksMCCYiNLGNU9KQqA/exec';
 
 let cloudSession = JSON.parse(localStorage.getItem('libreriaCasaCloudSession')) || null;
@@ -158,6 +159,18 @@ function ratingStars(value){
   return '⭐'.repeat(number);
 }
 
+function loanStatusText(book){
+  if(book.restituito === 'si'){
+    return `✅ Restituito il ${safe(book.dataRestituzione || 'data non indicata')}`;
+  }
+
+  if(book.prestatoA){
+    return `📤 Prestato a ${safe(book.prestatoA)} dal ${safe(book.dataPrestito || 'data non indicata')}`;
+  }
+
+  return '📚 Disponibile';
+}
+
 function setLoading(message){
   $('bookInfo').innerHTML = `
     <p>⏳ ${safe(message)}</p>
@@ -205,6 +218,16 @@ function showNotIsbnMessage(code){
   `;
 }
 
+function emptyLoanFields(){
+  return {
+    prestatoA: '',
+    dataPrestito: '',
+    dataPrevistaRestituzione: '',
+    restituito: '',
+    dataRestituzione: ''
+  };
+}
+
 function makeBookFromGoogle(volumeInfo, fallbackIsbn){
   let isbn = fallbackIsbn || 'Manuale';
 
@@ -231,7 +254,8 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
     category: '',
     status: '',
     rating: 0,
-    notes: ''
+    notes: '',
+    ...emptyLoanFields()
   };
 }
 
@@ -298,7 +322,8 @@ async function searchOpenLibraryByIsbn(isbn){
         category: '',
         status: '',
         rating: 0,
-        notes: ''
+        notes: '',
+        ...emptyLoanFields()
       };
     }
   }catch(e){}
@@ -322,7 +347,8 @@ async function searchOpenLibraryByIsbn(isbn){
         category: '',
         status: '',
         rating: 0,
-        notes: ''
+        notes: '',
+        ...emptyLoanFields()
       };
     }
   }catch(e){}
@@ -365,6 +391,11 @@ async function searchBookByIsbn(rawCode){
     if(volume){
       currentBook = makeBookFromGoogle(volume, isbn);
       showBook();
+
+      if(typeof openPage === 'function'){
+        openPage('add');
+      }
+
       return;
     }
 
@@ -373,6 +404,11 @@ async function searchBookByIsbn(rawCode){
     if(openBook){
       currentBook = openBook;
       showBook();
+
+      if(typeof openPage === 'function'){
+        openPage('add');
+      }
+
       return;
     }
 
@@ -385,6 +421,10 @@ async function searchBookByIsbn(rawCode){
       <p>Lo scanner ha letto correttamente il codice, ma il libro non è stato trovato automaticamente.</p>
       <p>Puoi salvarlo comunque: compila titolo, autore e anno, poi premi <strong>“Prepara inserimento manuale”</strong>.</p>
     `;
+
+    if(typeof openPage === 'function'){
+      openPage('add');
+    }
 
     manualTitle.focus();
 
@@ -402,6 +442,10 @@ async function searchBookByIsbn(rawCode){
       <p>Potrebbe esserci un problema temporaneo con la connessione o con la chiave Google Books.</p>
       <p>Puoi comunque salvare il libro manualmente.</p>
     `;
+
+    if(typeof openPage === 'function'){
+      openPage('add');
+    }
 
     manualTitle.focus();
 
@@ -457,7 +501,8 @@ async function searchBookByTitle(){
         category: '',
         status: '',
         rating: 0,
-        notes: ''
+        notes: '',
+        ...emptyLoanFields()
       };
 
       showBook();
@@ -497,7 +542,8 @@ function prepareManualBook(){
     category: '',
     status: '',
     rating: 0,
-    notes: ''
+    notes: '',
+    ...emptyLoanFields()
   };
 
   showBook();
@@ -699,7 +745,12 @@ async function saveBookOnline(book){
     category: book.category || '',
     status: book.status || '',
     rating: book.rating || 0,
-    notes: book.notes || ''
+    notes: book.notes || '',
+    prestatoA: book.prestatoA || '',
+    dataPrestito: book.dataPrestito || '',
+    dataPrevistaRestituzione: book.dataPrevistaRestituzione || '',
+    restituito: book.restituito || '',
+    dataRestituzione: book.dataRestituzione || ''
   });
 }
 
@@ -737,6 +788,11 @@ async function syncFromCloud(){
       status: book.status || 'Da leggere',
       rating: Number(book.rating || 0),
       notes: book.notes || '',
+      prestatoA: book.prestatoA || '',
+      dataPrestito: book.dataPrestito || '',
+      dataPrevistaRestituzione: book.dataPrevistaRestituzione || '',
+      restituito: book.restituito || '',
+      dataRestituzione: book.dataRestituzione || '',
       source: book.source || 'Archivio online'
     }));
 
@@ -769,155 +825,35 @@ async function deleteBookOnline(id){
   }catch(e){}
 }
 
-function openBookDetail(index){
-  const book = library[index];
-
-  if(!book){
+async function updateBookOnline(book){
+  if(!cloudSession || !book || !book.id){
     return;
   }
 
-  closeBookDetail();
+  try{
+    await deleteBookOnline(book.id);
+    await saveBookOnline(book);
+  }catch(e){}
+}
 
-  const modal = document.createElement('div');
-  modal.id = 'bookDetailModal';
-  modal.className = 'modal-backdrop';
+async function requestBookOnline(book, richiedente, messaggio){
+  const auth = getAuthParams();
 
-  modal.innerHTML = `
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2>📖 Scheda libro</h2>
-        <button class="modal-close" data-close-detail>✕</button>
-      </div>
+  if(!auth){
+    return {
+      ok: false,
+      error: 'Nessuna libreria online collegata'
+    };
+  }
 
-      <div class="detail-content">
-        ${
-          book.cover
-          ? `<img class="detail-cover" src="${safe(book.cover)}" alt="${safe(book.title)}">`
-          : `<div class="detail-cover placeholder">📚</div>`
-        }
-
-        <div class="detail-info">
-          <h3>${safe(book.title)}</h3>
-          <p>✍️ <strong>Autore:</strong> ${safe(book.author)}</p>
-          <p>📅 <strong>Anno:</strong> ${safe(book.year)}</p>
-          <p>🔢 <strong>ISBN:</strong> ${safe(book.isbn || 'Manuale')}</p>
-          <p>📍 <strong>Posizione:</strong> ${safe(book.place || 'Non indicata')}</p>
-          <p>🏷️ <strong>Categoria:</strong> ${safe(book.category || 'Non indicata')}</p>
-          <p>📘 <strong>Stato:</strong> ${safe(book.status || 'Da leggere')}</p>
-          <p>⭐ <strong>Valutazione:</strong> ${safe(ratingStars(book.rating))}</p>
-
-          ${book.notes ? `<p>📝 <strong>Note:</strong> ${safe(book.notes)}</p>` : ''}
-
-          <hr>
-
-          <p>🤝 <strong>Prestito:</strong> ${loanStatusText(book)}</p>
-
-          ${
-            book.dataPrevistaRestituzione
-            ? `<p>🔔 <strong>Restituzione prevista:</strong> ${safe(book.dataPrevistaRestituzione)}</p>`
-            : ''
-          }
-
-          ${
-            book.dataRestituzione
-            ? `<p>✅ <strong>Restituito il:</strong> ${safe(book.dataRestituzione)}</p>`
-            : ''
-          }
-        </div>
-      </div>
-
-      <div class="detail-actions">
-        <button class="secondary" data-detail-edit="${index}">
-          ✏️ Modifica libro
-        </button>
-
-        <button class="primary" data-detail-loan="${index}">
-          🤝 Segna come prestato
-        </button>
-
-        <button class="secondary" data-detail-return="${index}">
-          ✅ Segna come restituito
-        </button>
-
-        <button class="secondary" data-detail-request="${index}">
-          📩 Richiedi questo libro
-        </button>
-
-        <button class="danger" data-detail-delete="${index}">
-          🗑️ Elimina libro
-        </button>
-
-        <button class="primary" data-close-detail>
-          Chiudi
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  modal.addEventListener('click', e => {
-    if(e.target.id === 'bookDetailModal'){
-      closeBookDetail();
-    }
+  return await cloudRequest({
+    action: 'requestBook',
+    ...auth,
+    idLibro: book.id,
+    titoloLibro: book.title,
+    richiedente: richiedente,
+    messaggio: messaggio
   });
-}
-
-function closeBookDetail(){
-  const modal = document.getElementById('bookDetailModal');
-
-  if(modal){
-    modal.remove();
-  }
-}
-
-function startEditBook(index){
-  const book = library[index];
-
-  if(!book){
-    return;
-  }
-
-  editingBookIndex = index;
-  currentBook = {...book};
-
-  isbnInput.value = book.isbn || '';
-  scannedCode.value = book.isbn || '';
-
-  manualTitle.value = book.title || '';
-  manualAuthor.value = book.author || '';
-  manualYear.value = book.year || '';
-
-  const availablePositions = Array.from(posizione.options).map(option => option.value);
-
-  if(availablePositions.includes(book.place)){
-    posizione.value = book.place;
-    posizioneAltro.value = '';
-  }else{
-    posizione.value = 'Altro';
-    posizioneAltro.value = book.place || '';
-  }
-
-  category.value = book.category || 'Non indicata';
-  statusSelect.value = book.status || 'Da leggere';
-  rating.value = String(book.rating || 0);
-  notes.value = book.notes || '';
-
-  showBook();
-  closeBookDetail();
-
-  if(typeof openPage === 'function'){
-    openPage('add');
-  }
-
-  setTimeout(() => {
-    document.getElementById('bookInfo').scrollIntoView({
-      behavior:'smooth',
-      block:'start'
-    });
-  }, 300);
-
-  alert('Scheda aperta in modifica. Cambia i dati e poi premi “Salva libro”.');
 }
 
 async function stopScanner(){
@@ -996,6 +932,224 @@ async function startScanner(){
   }
 }
 
+function openBookDetail(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  closeBookDetail();
+
+  const modal = document.createElement('div');
+  modal.id = 'bookDetailModal';
+  modal.className = 'modal-backdrop';
+
+  modal.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📖 Scheda libro</h2>
+        <button class="modal-close" data-close-detail>✕</button>
+      </div>
+
+      <div class="detail-content">
+        ${
+          book.cover
+          ? `<img class="detail-cover" src="${safe(book.cover)}" alt="${safe(book.title)}">`
+          : `<div class="detail-cover placeholder">📚</div>`
+        }
+
+        <div class="detail-info">
+          <h3>${safe(book.title)}</h3>
+          <p>✍️ <strong>Autore:</strong> ${safe(book.author)}</p>
+          <p>📅 <strong>Anno:</strong> ${safe(book.year)}</p>
+          <p>🔢 <strong>ISBN:</strong> ${safe(book.isbn || 'Manuale')}</p>
+          <p>📍 <strong>Posizione:</strong> ${safe(book.place || 'Non indicata')}</p>
+          <p>🏷️ <strong>Categoria:</strong> ${safe(book.category || 'Non indicata')}</p>
+          <p>📘 <strong>Stato:</strong> ${safe(book.status || 'Da leggere')}</p>
+          <p>⭐ <strong>Valutazione:</strong> ${safe(ratingStars(book.rating))}</p>
+          ${book.notes ? `<p>📝 <strong>Note:</strong> ${safe(book.notes)}</p>` : ''}
+
+          <hr>
+
+          <p>🤝 <strong>Prestito:</strong> ${loanStatusText(book)}</p>
+          ${book.dataPrevistaRestituzione ? `<p>🔔 <strong>Restituzione prevista:</strong> ${safe(book.dataPrevistaRestituzione)}</p>` : ''}
+          ${book.dataRestituzione ? `<p>✅ <strong>Restituito il:</strong> ${safe(book.dataRestituzione)}</p>` : ''}
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button class="secondary" data-detail-edit="${index}">✏️ Modifica libro</button>
+        <button class="primary" data-detail-loan="${index}">🤝 Segna come prestato</button>
+        <button class="secondary" data-detail-return="${index}">✅ Segna come restituito</button>
+        <button class="secondary" data-detail-request="${index}">📩 Richiedi questo libro</button>
+        <button class="danger" data-detail-delete="${index}">🗑️ Elimina libro</button>
+        <button class="primary" data-close-detail>Chiudi</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.addEventListener('click', e => {
+    if(e.target.id === 'bookDetailModal'){
+      closeBookDetail();
+    }
+  });
+}
+
+function closeBookDetail(){
+  const modal = document.getElementById('bookDetailModal');
+
+  if(modal){
+    modal.remove();
+  }
+}
+
+function startEditBook(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  editingBookIndex = index;
+  currentBook = {...book};
+
+  isbnInput.value = book.isbn || '';
+  scannedCode.value = book.isbn || '';
+
+  manualTitle.value = book.title || '';
+  manualAuthor.value = book.author || '';
+  manualYear.value = book.year || '';
+
+  const availablePositions = Array.from(posizione.options).map(option => option.value);
+
+  if(availablePositions.includes(book.place)){
+    posizione.value = book.place;
+    posizioneAltro.value = '';
+  }else{
+    posizione.value = 'Altro';
+    posizioneAltro.value = book.place || '';
+  }
+
+  category.value = book.category || 'Non indicata';
+  statusSelect.value = book.status || 'Da leggere';
+  rating.value = String(book.rating || 0);
+  notes.value = book.notes || '';
+
+  showBook();
+  closeBookDetail();
+
+  if(typeof openPage === 'function'){
+    openPage('add');
+  }
+
+  setTimeout(() => {
+    document.getElementById('bookInfo').scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+  }, 300);
+
+  alert('Scheda aperta in modifica. Cambia i dati e poi premi “Salva libro”.');
+}
+
+async function markBookLoaned(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  const nome = prompt('A chi è stato prestato il libro?');
+
+  if(!nome){
+    return;
+  }
+
+  const oggi = new Date().toISOString().slice(0,10);
+
+  const dataPrestito = prompt('Data prestito:', oggi) || oggi;
+  const dataPrevista = prompt('Data prevista restituzione, puoi lasciare vuoto:', '') || '';
+
+  book.prestatoA = nome;
+  book.dataPrestito = dataPrestito;
+  book.dataPrevistaRestituzione = dataPrevista;
+  book.restituito = 'no';
+  book.dataRestituzione = '';
+
+  saveLibraryLocal();
+  renderLibrary(searchInput.value);
+  updateStats();
+  closeBookDetail();
+
+  await updateBookOnline(book);
+
+  alert('✅ Libro segnato come prestato.');
+}
+
+async function markBookReturned(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  if(!book.prestatoA){
+    alert('Questo libro non risulta prestato.');
+    return;
+  }
+
+  const oggi = new Date().toISOString().slice(0,10);
+  const data = prompt('Data restituzione:', oggi) || oggi;
+
+  book.restituito = 'si';
+  book.dataRestituzione = data;
+
+  saveLibraryLocal();
+  renderLibrary(searchInput.value);
+  updateStats();
+  closeBookDetail();
+
+  await updateBookOnline(book);
+
+  alert('✅ Libro segnato come restituito.');
+}
+
+async function requestBook(index){
+  const book = library[index];
+
+  if(!book){
+    return;
+  }
+
+  if(!cloudSession){
+    alert('Per inviare una richiesta bisogna accedere a una libreria online.');
+    return;
+  }
+
+  const richiedente = prompt('Nome di chi richiede il libro:');
+
+  if(!richiedente){
+    return;
+  }
+
+  const messaggio = prompt('Messaggio facoltativo:', 'Vorrei prendere in prestito questo libro.') || '';
+
+  try{
+    const result = await requestBookOnline(book, richiedente, messaggio);
+
+    if(result.ok){
+      alert('✅ Richiesta inviata.');
+    }else{
+      alert(result.error || 'Errore durante l’invio della richiesta.');
+    }
+  }catch(e){
+    alert('Errore collegamento archivio online.');
+  }
+}
+
 async function saveCurrentBook(){
   if(!currentBook){
     alert('Prima scannerizza, cerca o inserisci un libro.');
@@ -1030,6 +1184,12 @@ async function saveCurrentBook(){
   currentBook.status = statusSelect.value || 'Da leggere';
   currentBook.rating = Number(rating.value || 0);
   currentBook.notes = notes.value.trim();
+
+  currentBook.prestatoA = currentBook.prestatoA || '';
+  currentBook.dataPrestito = currentBook.dataPrestito || '';
+  currentBook.dataPrevistaRestituzione = currentBook.dataPrevistaRestituzione || '';
+  currentBook.restituito = currentBook.restituito || '';
+  currentBook.dataRestituzione = currentBook.dataRestituzione || '';
 
   const sameBook = library.find((book, index) =>
     index !== editingBookIndex &&
@@ -1126,7 +1286,8 @@ function renderLibrary(filter = ''){
         book.place,
         book.category,
         book.status,
-        book.notes
+        book.notes,
+        book.prestatoA
       ].join(' ').toLowerCase();
 
       return searchable.includes(text);
@@ -1162,6 +1323,7 @@ function renderLibrary(filter = ''){
             <p>⭐ ${safe(ratingStars(book.rating))}</p>
             <p>🔢 ${safe(book.isbn || 'Manuale')}</p>
             ${book.notes ? `<p>📝 ${safe(book.notes)}</p>` : ''}
+            <p>🤝 ${loanStatusText(book)}</p>
           </div>
         </div>
 
@@ -1221,7 +1383,12 @@ function exportCSV(){
     'Categoria',
     'Stato',
     'Valutazione',
-    'Note'
+    'Note',
+    'Prestato a',
+    'Data prestito',
+    'Data prevista restituzione',
+    'Restituito',
+    'Data restituzione'
   ];
 
   const rows = library.map(book => [
@@ -1233,7 +1400,12 @@ function exportCSV(){
     book.category,
     book.status,
     book.rating,
-    book.notes
+    book.notes,
+    book.prestatoA,
+    book.dataPrestito,
+    book.dataPrevistaRestituzione,
+    book.restituito,
+    book.dataRestituzione
   ]);
 
   const csv = [headers,...rows]
