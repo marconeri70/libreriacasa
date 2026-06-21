@@ -1,21 +1,15 @@
-self.addEventListener('install', event => {
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.open('libreria-casa-v1').then(cache => {
-      return cache.addAll([
-        './',
-        './index.html',
-        './style.css',
-        './app.js',
-        './manifest.webmanifest'
-      ]);
-    })
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.map(key => caches.delete(key))
+      )
+    )
   );
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
-});
+self.addEventListener('fetch', () => {});
