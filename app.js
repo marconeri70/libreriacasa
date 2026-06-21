@@ -1,6 +1,7 @@
 let library = JSON.parse(localStorage.getItem('library')) || [];
 let currentBook = null;
 let html5QrCode = null;
+const GOOGLE_BOOKS_API_KEY = 'AIzaSyB6fg392aV7JjXI9IfCo0ROuiOgvH12QC4';
 
 const $ = id => document.getElementById(id);
 
