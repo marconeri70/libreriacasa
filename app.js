@@ -1372,6 +1372,91 @@ async function deleteBook(index){
   }
 }
 
+function renderLoans(){
+  if(!loanedBooksDiv){
+    return;
+  }
+
+  const prestati = library.filter(book =>
+    book.prestatoA && book.restituito !== 'si'
+  );
+
+  loanedBooksDiv.innerHTML = '';
+
+  if(prestati.length === 0){
+    loanedBooksDiv.innerHTML = '<p>Nessun libro attualmente prestato.</p>';
+    return;
+  }
+
+  prestati.forEach(book => {
+    loanedBooksDiv.innerHTML += `
+      <div class="loan-card">
+        <h3>📖 ${safe(book.title)}</h3>
+        <p>✍️ ${safe(book.author)}</p>
+        <p>📤 Prestato a: <strong>${safe(book.prestatoA)}</strong></p>
+        <p>📅 Data prestito: ${safe(book.dataPrestito || 'Non indicata')}</p>
+        ${
+          book.dataPrevistaRestituzione
+          ? `<p>🔔 Restituzione prevista: ${safe(book.dataPrevistaRestituzione)}</p>`
+          : ''
+        }
+        <p>📍 Posizione originale: ${safe(book.place || 'Non indicata')}</p>
+      </div>
+    `;
+  });
+}
+
+async function loadRequests(){
+  if(!requestsListDiv){
+    return;
+  }
+
+  if(!cloudSession){
+    alert('Per vedere le richieste devi accedere a una libreria online.');
+    return;
+  }
+
+  requestsListDiv.innerHTML = '<p>⏳ Caricamento richieste...</p>';
+
+  try{
+    const result = await cloudRequest({
+      action: 'listRequests',
+      ...getAuthParams()
+    });
+
+    if(!result.ok){
+      requestsListDiv.innerHTML = '<p>Errore nel caricamento richieste.</p>';
+      alert(result.error || 'Errore durante il caricamento richieste.');
+      return;
+    }
+
+    const richieste = result.richieste || [];
+
+    if(richieste.length === 0){
+      requestsListDiv.innerHTML = '<p>Nessuna richiesta ricevuta.</p>';
+      return;
+    }
+
+    requestsListDiv.innerHTML = '';
+
+    richieste.reverse().forEach(req => {
+      requestsListDiv.innerHTML += `
+        <div class="request-card">
+          <h3>📩 ${safe(req.titoloLibro)}</h3>
+          <p>👤 Richiedente: <strong>${safe(req.richiedente)}</strong></p>
+          <p>💬 Messaggio: ${safe(req.messaggio || 'Nessun messaggio')}</p>
+          <p>📅 Data richiesta: ${safe(req.dataRichiesta || '')}</p>
+          <p><span class="request-badge">${safe(req.statoRichiesta || 'Nuova')}</span></p>
+        </div>
+      `;
+    });
+
+  }catch(e){
+    requestsListDiv.innerHTML = '<p>Errore collegamento archivio online.</p>';
+    alert('Errore collegamento archivio online.');
+  }
+}
+
 function exportCSV(){
   if(library.length === 0){
     alert('Non ci sono libri da esportare.');
