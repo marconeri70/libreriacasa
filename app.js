@@ -228,9 +228,22 @@ async function searchBookByIsbn(rawCode){
     return;
   }
 
-  setLoading('Ricerca libro su Open Library...');
+  setLoading('Ricerca libro nei cataloghi online...');
 
   try{
+
+    let volume = await searchGoogleBooks(`isbn:${isbn}`);
+
+    if(!volume){
+      volume = await searchGoogleBooks(isbn);
+    }
+
+    if(volume){
+      currentBook = makeBookFromGoogle(volume, isbn);
+      showBook();
+      return;
+    }
+
     const openBook = await searchOpenLibraryByIsbn(isbn);
 
     if(openBook){
@@ -242,31 +255,35 @@ async function searchBookByIsbn(rawCode){
     currentBook = null;
 
     $('bookInfo').innerHTML = `
-      <h3>📕 Libro non trovato online</h3>
-      <p>Codice ISBN letto:</p>
+      <h3>📕 Libro non trovato nei cataloghi online</h3>
+      <p>ISBN letto:</p>
       <p><strong>${safe(isbn)}</strong></p>
-      <p>Il codice è stato inserito nel campo ISBN.</p>
-      <p>Compila titolo, autore e anno, poi premi <strong>“Prepara inserimento manuale”</strong>.</p>
+      <p>Lo scanner ha letto correttamente il codice, ma il libro non è stato trovato automaticamente.</p>
+      <p>Puoi salvarlo comunque: compila titolo, autore e anno, poi premi <strong>“Prepara inserimento manuale”</strong>.</p>
     `;
 
     manualTitle.focus();
 
-    alert('Libro non trovato online. Inserisci titolo, autore e anno, poi premi “Prepara inserimento manuale”.');
+    alert(
+      'Libro non trovato nei cataloghi online.\n\nLo scanner ha letto correttamente l’ISBN.\n\nInserisci titolo, autore e anno, poi premi “Prepara inserimento manuale”.'
+    );
 
   }catch(e){
     currentBook = null;
 
     $('bookInfo').innerHTML = `
-      <h3>⚠️ Errore ricerca</h3>
-      <p>Non è stato possibile collegarsi a Open Library.</p>
-      <p>Codice ISBN:</p>
+      <h3>⚠️ Errore nella ricerca online</h3>
+      <p>ISBN letto:</p>
       <p><strong>${safe(isbn)}</strong></p>
-      <p>Puoi comunque inserirlo manualmente.</p>
+      <p>Potrebbe esserci un problema temporaneo con la connessione o con la chiave Google Books.</p>
+      <p>Puoi comunque salvare il libro manualmente.</p>
     `;
 
     manualTitle.focus();
 
-    alert('Errore durante la ricerca. Puoi inserirlo manualmente.');
+    alert(
+      'Errore durante la ricerca online.\n\nControlla la connessione o la chiave Google Books.\n\nPuoi comunque inserirlo manualmente.'
+    );
   }
 }
 
