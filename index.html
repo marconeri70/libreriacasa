@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Libreria Casa</title>
+  <title>Libreria Casa 3.0</title>
 
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
@@ -16,38 +16,116 @@
 
 <header>
   <h1>📚 Libreria Casa</h1>
-  <p>Scannerizza e organizza i tuoi libri</p>
+  <p>Catalogo personale dei libri di casa</p>
 </header>
 
 <main>
 
-  <button id="scanBtn">📷 Scansiona ISBN</button>
+  <section class="panel">
+    <h2>📷 Scanner ISBN</h2>
 
-  <div id="reader" style="display:none;"></div>
+    <button id="scanBtn" class="primary">📷 Avvia scanner</button>
+    <button id="stopScanBtn" class="danger">⛔ Ferma scanner</button>
 
-  <div id="bookInfo">
-    Nessun libro selezionato
-  </div>
+    <div id="reader"></div>
 
-  <input type="text" id="manualTitle" placeholder="Titolo libro">
-  <input type="text" id="manualAuthor" placeholder="Autore">
-  <input type="text" id="manualYear" placeholder="Anno">
+    <div id="scanResult" class="box" hidden>
+      <p><strong>Codice letto:</strong></p>
+      <input type="text" id="scannedCode" placeholder="Codice letto dallo scanner">
+      <button id="useScannedBtn" class="primary">🔎 Cerca questo codice</button>
+    </div>
+  </section>
 
-  <button id="manualBtn">➕ Inserisci libro manualmente</button>
+  <section class="panel">
+    <h2>🔎 Ricerca manuale</h2>
 
-  <input
-    type="text"
-    id="posizione"
-    placeholder="Es: Scaffale salotto">
+    <input type="text" id="isbnInput" placeholder="Inserisci ISBN, es: 9788817041324">
+    <button id="searchIsbnBtn" class="primary">🔎 Cerca per ISBN</button>
 
-  <button id="saveBtn">💾 Salva libro</button>
+    <hr>
 
-  <input
-    type="text"
-    id="search"
-    placeholder="🔎 Cerca un libro">
+    <input type="text" id="manualTitle" placeholder="Titolo libro">
+    <input type="text" id="manualAuthor" placeholder="Autore">
+    <input type="text" id="manualYear" placeholder="Anno">
 
-  <div id="library"></div>
+    <button id="searchTitleBtn" class="secondary">🔎 Cerca per titolo</button>
+    <button id="manualBtn" class="secondary">➕ Prepara inserimento manuale</button>
+  </section>
+
+  <section class="panel">
+    <h2>📖 Libro selezionato</h2>
+
+    <div id="bookInfo" class="book-info">
+      Nessun libro selezionato
+    </div>
+
+    <label>📍 Posizione in casa</label>
+    <select id="posizione">
+      <option value="">Seleziona posizione</option>
+      <option value="Salotto">Salotto</option>
+      <option value="Studio">Studio</option>
+      <option value="Camera">Camera</option>
+      <option value="Cameretta">Cameretta</option>
+      <option value="Corridoio">Corridoio</option>
+      <option value="Mansarda">Mansarda</option>
+      <option value="Garage">Garage</option>
+      <option value="Altro">Altro</option>
+    </select>
+
+    <input type="text" id="posizioneAltro" placeholder="Altra posizione, es: Scaffale alto">
+
+    <label>🏷️ Categoria</label>
+    <select id="category">
+      <option value="Non indicata">Non indicata</option>
+      <option value="Romanzo">Romanzo</option>
+      <option value="Giallo">Giallo</option>
+      <option value="Thriller">Thriller</option>
+      <option value="Fantasy">Fantasy</option>
+      <option value="Storia">Storia</option>
+      <option value="Biografia">Biografia</option>
+      <option value="Religione">Religione</option>
+      <option value="Tecnico">Tecnico</option>
+      <option value="Informatica">Informatica</option>
+      <option value="Fumetto">Fumetto</option>
+      <option value="Altro">Altro</option>
+    </select>
+
+    <label>📘 Stato lettura</label>
+    <select id="status">
+      <option value="Da leggere">📕 Da leggere</option>
+      <option value="In lettura">📗 In lettura</option>
+      <option value="Letto">📘 Letto</option>
+    </select>
+
+    <label>⭐ Valutazione</label>
+    <select id="rating">
+      <option value="0">Senza voto</option>
+      <option value="1">⭐</option>
+      <option value="2">⭐⭐</option>
+      <option value="3">⭐⭐⭐</option>
+      <option value="4">⭐⭐⭐⭐</option>
+      <option value="5">⭐⭐⭐⭐⭐</option>
+    </select>
+
+    <textarea id="notes" placeholder="Note personali"></textarea>
+
+    <button id="saveBtn" class="save">💾 Salva libro</button>
+  </section>
+
+  <section class="panel">
+    <h2>📊 Statistiche</h2>
+    <div id="stats" class="stats"></div>
+
+    <button id="exportBtn" class="secondary">📤 Esporta CSV</button>
+  </section>
+
+  <section class="panel">
+    <h2>📚 La tua libreria</h2>
+
+    <input type="text" id="search" placeholder="🔎 Cerca nella libreria">
+
+    <div id="library"></div>
+  </section>
 
 </main>
 
