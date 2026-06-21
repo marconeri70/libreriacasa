@@ -164,6 +164,124 @@ function ratingStars(value){
   return '⭐'.repeat(number);
 }
 
+function suggestCategoryFromText(text){
+  const value = String(text || '').toLowerCase();
+
+  if(
+    value.includes('religion') ||
+    value.includes('christian') ||
+    value.includes('catholic') ||
+    value.includes('chiesa') ||
+    value.includes('papa') ||
+    value.includes('religione') ||
+    value.includes('spiritual') ||
+    value.includes('karol') ||
+    value.includes('wojtyla')
+  ){
+    return 'Religione';
+  }
+
+  if(
+    value.includes('history') ||
+    value.includes('historical') ||
+    value.includes('storia') ||
+    value.includes('war') ||
+    value.includes('guerra')
+  ){
+    return 'Storia';
+  }
+
+  if(
+    value.includes('biography') ||
+    value.includes('biographical') ||
+    value.includes('biografia') ||
+    value.includes('memoir') ||
+    value.includes('autobiography')
+  ){
+    return 'Biografia';
+  }
+
+  if(
+    value.includes('thriller') ||
+    value.includes('suspense')
+  ){
+    return 'Thriller';
+  }
+
+  if(
+    value.includes('mystery') ||
+    value.includes('crime') ||
+    value.includes('detective') ||
+    value.includes('giallo') ||
+    value.includes('noir')
+  ){
+    return 'Giallo';
+  }
+
+  if(
+    value.includes('fantasy') ||
+    value.includes('fantastico')
+  ){
+    return 'Fantasy';
+  }
+
+  if(
+    value.includes('computer') ||
+    value.includes('programming') ||
+    value.includes('software') ||
+    value.includes('informatica') ||
+    value.includes('coding')
+  ){
+    return 'Informatica';
+  }
+
+  if(
+    value.includes('comic') ||
+    value.includes('manga') ||
+    value.includes('graphic novel') ||
+    value.includes('fumetto')
+  ){
+    return 'Fumetto';
+  }
+
+  if(
+    value.includes('technology') ||
+    value.includes('technical') ||
+    value.includes('manual') ||
+    value.includes('tecnico') ||
+    value.includes('engineering')
+  ){
+    return 'Tecnico';
+  }
+
+  if(
+    value.includes('fiction') ||
+    value.includes('novel') ||
+    value.includes('literature') ||
+    value.includes('letteratura') ||
+    value.includes('romanzo') ||
+    value.includes('juvenile fiction') ||
+    value.includes('classic')
+  ){
+    return 'Romanzo';
+  }
+
+  return 'Altro';
+}
+
+function setCategorySelect(value){
+  if(!category){
+    return;
+  }
+
+  const categoria = value || 'Non indicata';
+
+  const exists = Array.from(category.options)
+    .some(option => option.value === categoria);
+
+  category.value = exists ? categoria : 'Altro';
+}
+
 function loanStatusText(book){
   if(book.restituito === 'si'){
     return `✅ Restituito il ${safe(book.dataRestituzione || 'data non indicata')}`;
@@ -202,6 +320,8 @@ function showBook(){
   manualAuthor.value = currentBook.author || '';
   manualYear.value = currentBook.year || '';
 
+  setCategorySelect(currentBook.category || 'Non indicata');
+
   $('bookInfo').innerHTML = `
     <div class="preview">
       ${
@@ -214,6 +334,7 @@ function showBook(){
         <h3>📖 ${safe(currentBook.title)}</h3>
         <p>✍️ ${safe(currentBook.author)}</p>
         <p>📅 ${safe(currentBook.year)}</p>
+        <p>🏷️ Categoria suggerita: ${safe(currentBook.category || 'Non indicata')}</p>
         <p>🔢 Codice: ${safe(currentBook.isbn || 'Manuale')}</p>
         <p>🌐 Fonte: ${safe(currentBook.source || 'Manuale')}</p>
       </div>
@@ -243,6 +364,13 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
     isbn = isbn13?.identifier || isbn10?.identifier || isbn;
   }
 
+  const categoryText = [
+    volumeInfo.title || '',
+    volumeInfo.subtitle || '',
+    (volumeInfo.categories || []).join(' '),
+    volumeInfo.description || ''
+  ].join(' ');
+
   return {
     id: String(Date.now()),
     isbn: isbn,
@@ -256,7 +384,7 @@ function makeBookFromGoogle(volumeInfo, fallbackIsbn){
     ),
     source: 'Google Books',
     place: '',
-    category: '',
+    category: suggestCategoryFromText(categoryText),
     status: '',
     rating: 0,
     notes: '',
@@ -315,6 +443,13 @@ async function searchOpenLibraryByIsbn(isbn){
         cover = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
       }
 
+      const categoryText = [
+        data.title || '',
+        data.subtitle || '',
+        data.subjects ? data.subjects.join(' ') : '',
+        data.description ? String(data.description.value || data.description) : ''
+      ].join(' ');
+
       return {
         id: String(Date.now()),
         isbn: isbn,
@@ -324,7 +459,7 @@ async function searchOpenLibraryByIsbn(isbn){
         cover: cover,
         source: 'Open Library',
         place: '',
-        category: '',
+        category: suggestCategoryFromText(categoryText),
         status: '',
         rating: 0,
         notes: '',
@@ -340,6 +475,13 @@ async function searchOpenLibraryByIsbn(isbn){
     if(data.docs && data.docs.length > 0){
       const doc = data.docs[0];
 
+      const categoryText = [
+        doc.title || '',
+        (doc.subject || []).join(' '),
+        (doc.person || []).join(' '),
+        (doc.place || []).join(' ')
+      ].join(' ');
+
       return {
         id: String(Date.now()),
         isbn: isbn,
@@ -349,7 +491,7 @@ async function searchOpenLibraryByIsbn(isbn){
         cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
         source: 'Open Library',
         place: '',
-        category: '',
+        category: suggestCategoryFromText(categoryText),
         status: '',
         rating: 0,
         notes: '',
@@ -494,6 +636,12 @@ async function searchBookByTitle(){
     if(data.docs && data.docs.length > 0){
       const doc = data.docs[0];
 
+      const categoryText = [
+        doc.title || title,
+        (doc.subject || []).join(' '),
+        author
+      ].join(' ');
+
       currentBook = {
         id: String(Date.now()),
         isbn: doc.isbn && doc.isbn.length ? doc.isbn[0] : 'Manuale',
@@ -503,7 +651,7 @@ async function searchBookByTitle(){
         cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
         source: 'Open Library',
         place: '',
-        category: '',
+        category: suggestCategoryFromText(categoryText),
         status: '',
         rating: 0,
         notes: '',
@@ -544,7 +692,7 @@ function prepareManualBook(){
     cover: '',
     source: 'Manuale',
     place: '',
-    category: '',
+    category: suggestCategoryFromText([title, author].join(' ')),
     status: '',
     rating: 0,
     notes: '',
@@ -1042,7 +1190,8 @@ function startEditBook(index){
     posizioneAltro.value = book.place || '';
   }
 
-  category.value = book.category || 'Non indicata';
+  setCategorySelect(book.category || 'Non indicata');
+
   statusSelect.value = book.status || 'Da leggere';
   rating.value = String(book.rating || 0);
   notes.value = book.notes || '';
@@ -1191,7 +1340,7 @@ async function saveCurrentBook(){
     : String(Date.now());
 
   currentBook.place = getPositionValue();
-  currentBook.category = category.value || 'Non indicata';
+  currentBook.category = category.value || currentBook.category || 'Non indicata';
   currentBook.status = statusSelect.value || 'Da leggere';
   currentBook.rating = Number(rating.value || 0);
   currentBook.notes = notes.value.trim();
@@ -1267,7 +1416,7 @@ async function saveCurrentBook(){
 
   posizione.value = '';
   posizioneAltro.value = '';
-  category.value = 'Non indicata';
+  setCategorySelect('Non indicata');
   statusSelect.value = 'Da leggere';
   rating.value = '0';
   notes.value = '';
