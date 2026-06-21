@@ -50,6 +50,10 @@ const rating = $('rating');
 const notes = $('notes');
 const saveBtn = $('saveBtn');
 const exportBtn = $('exportBtn');
+const refreshLoansBtn = $('refreshLoansBtn');
+const loanedBooksDiv = $('loanedBooks');
+const loadRequestsBtn = $('loadRequestsBtn');
+const requestsListDiv = $('requestsList');
 
 function getLibraryStorageKey(){
   if(cloudSession && cloudSession.codiceLibreria){
