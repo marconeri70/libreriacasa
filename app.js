@@ -2,233 +2,454 @@ let library = JSON.parse(localStorage.getItem('library')) || [];
 let currentBook = null;
 let html5QrCode = null;
 
-const libraryDiv = document.getElementById('library');
-const searchInput = document.getElementById('search');
-const scanBtn = document.getElementById('scanBtn');
-const reader = document.getElementById('reader');
+const $ = id => document.getElementById(id);
 
-const manualTitle = document.getElementById('manualTitle');
-const manualAuthor = document.getElementById('manualAuthor');
-const manualYear = document.getElementById('manualYear');
-const manualBtn = document.getElementById('manualBtn');
+const libraryDiv = $('library');
+const searchInput = $('search');
+const statsDiv = $('stats');
 
-function cleanCode(code) {
+const scanBtn = $('scanBtn');
+const stopScanBtn = $('stopScanBtn');
+const reader = $('reader');
+const scanResult = $('scanResult');
+const scannedCode = $('scannedCode');
+const useScannedBtn = $('useScannedBtn');
+
+const isbnInput = $('isbnInput');
+const searchIsbnBtn = $('searchIsbnBtn');
+
+const manualTitle = $('manualTitle');
+const manualAuthor = $('manualAuthor');
+const manualYear = $('manualYear');
+const searchTitleBtn = $('searchTitleBtn');
+const manualBtn = $('manualBtn');
+
+const posizione = $('posizione');
+const posizioneAltro = $('posizioneAltro');
+const category = $('category');
+const statusSelect = $('status');
+const rating = $('rating');
+const notes = $('notes');
+const saveBtn = $('saveBtn');
+const exportBtn = $('exportBtn');
+
+function cleanCode(code){
   return String(code || '')
-    .replace(/-/g, '')
-    .replace(/\s/g, '')
+    .replace(/[^0-9Xx]/g,'')
     .trim();
 }
 
-function isLikelyISBN(code) {
+function cleanDigits(code){
+  return String(code || '')
+    .replace(/\D/g,'')
+    .trim();
+}
+
+function isLikelyISBN(code){
   const clean = cleanCode(code);
 
-  if (clean.length === 10) return true;
+  if(clean.length === 10){
+    return true;
+  }
 
-  if (clean.length === 13 && (clean.startsWith('978') || clean.startsWith('979'))) {
+  if(clean.length === 13 && (clean.startsWith('978') || clean.startsWith('979'))){
     return true;
   }
 
   return false;
 }
 
-function isIssnOrMagazineCode(code) {
-  const clean = cleanCode(code);
+function isMagazineOrIssn(code){
+  const clean = cleanDigits(code);
   return clean.startsWith('977');
 }
 
-function renderLibrary(filter = '') {
-  libraryDiv.innerHTML = '';
+function safe(value){
+  return String(value || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
 
-  const text = filter.toLowerCase();
+function normalizeCover(url){
+  if(!url){
+    return '';
+  }
 
-  const books = library.filter(book =>
-    book.title.toLowerCase().includes(text) ||
-    book.author.toLowerCase().includes(text) ||
-    book.isbn.toLowerCase().includes(text) ||
-    book.place.toLowerCase().includes(text)
-  );
+  return String(url).replace('http://','https://');
+}
 
-  if (books.length === 0) {
-    libraryDiv.innerHTML = '<p>Nessun libro presente.</p>';
+function getPositionValue(){
+  const extra = posizioneAltro.value.trim();
+
+  if(extra){
+    return extra;
+  }
+
+  return posizione.value || 'Non indicato';
+}
+
+function ratingStars(value){
+  const number = Number(value || 0);
+
+  if(number <= 0){
+    return 'Senza voto';
+  }
+
+  return '⭐'.repeat(number);
+}
+
+function setLoading(message){
+  $('bookInfo').innerHTML = `
+    <p>⏳ ${safe(message)}</p>
+  `;
+}
+
+function showBook(){
+  if(!currentBook){
+    $('bookInfo').innerHTML = 'Nessun libro selezionato';
     return;
   }
 
-  books.forEach((book, index) => {
-    libraryDiv.innerHTML += `
-      <div class="card">
-        ${book.cover ? `<img src="${book.cover}" alt="${book.title}">` : ''}
-        <h3>📖 ${book.title}</h3>
-        <p>✍️ ${book.author}</p>
-        <p>📅 ${book.year}</p>
-        <p>📍 ${book.place}</p>
-        <p>🔢 Codice: ${book.isbn || 'Manuale'}</p>
-        <button onclick="deleteBook(${index})">🗑️ Elimina</button>
+  manualTitle.value = currentBook.title || '';
+  manualAuthor.value = currentBook.author || '';
+  manualYear.value = currentBook.year || '';
+
+  $('bookInfo').innerHTML = `
+    <div class="preview">
+      ${
+        currentBook.cover
+        ? `<img src="${safe(currentBook.cover)}" alt="${safe(currentBook.title)}">`
+        : `<div class="cover-placeholder">📚</div>`
+      }
+
+      <div>
+        <h3>📖 ${safe(currentBook.title)}</h3>
+        <p>✍️ ${safe(currentBook.author)}</p>
+        <p>📅 ${safe(currentBook.year)}</p>
+        <p>🔢 Codice: ${safe(currentBook.isbn || 'Manuale')}</p>
+        <p>🌐 Fonte: ${safe(currentBook.source || 'Manuale')}</p>
       </div>
-    `;
-  });
-}
-
-function deleteBook(index) {
-  const conferma = confirm('Vuoi eliminare questo libro dalla libreria?');
-
-  if (!conferma) return;
-
-  library.splice(index, 1);
-  localStorage.setItem('library', JSON.stringify(library));
-  renderLibrary(searchInput.value);
-}
-
-function showBook() {
-  document.getElementById('bookInfo').innerHTML = `
-    <h3>📖 ${currentBook.title}</h3>
-    <p>✍️ ${currentBook.author}</p>
-    <p>📅 ${currentBook.year}</p>
-    <p>🔢 Codice: ${currentBook.isbn || 'Inserimento manuale'}</p>
-    ${currentBook.cover ? `<img src="${currentBook.cover}" width="120">` : ''}
+    </div>
   `;
 }
 
-function showManualMessage(code = '') {
-  document.getElementById('bookInfo').innerHTML = `
-    <h3>⚠️ Codice non riconosciuto come ISBN</h3>
-    <p>Il codice letto è:</p>
-    <p><strong>${code}</strong></p>
-    <p>Probabilmente è un codice ISSN o un codice da edicola/collana.</p>
-    <p>Puoi inserire il libro manualmente usando i campi sotto.</p>
+function showNotIsbnMessage(code){
+  currentBook = null;
+
+  $('bookInfo').innerHTML = `
+    <h3>⚠️ Codice non valido come ISBN</h3>
+    <p>Codice letto:</p>
+    <p><strong>${safe(code)}</strong></p>
+    <p>Probabilmente è un codice ISSN, una collana da edicola o un codice non presente nei cataloghi libri.</p>
+    <p>Puoi cercare il libro per titolo oppure inserirlo manualmente.</p>
   `;
 }
 
-async function searchBook(isbn) {
-  isbn = cleanCode(isbn);
+function makeBookFromGoogle(volumeInfo, fallbackIsbn){
+  let isbn = fallbackIsbn || 'Manuale';
 
-  if (isIssnOrMagazineCode(isbn)) {
-    showManualMessage(isbn);
-    alert('Questo codice inizia con 977: probabilmente non è un ISBN. Inserisci il libro manualmente.');
-    return;
+  if(volumeInfo.industryIdentifiers && volumeInfo.industryIdentifiers.length){
+    const isbn13 = volumeInfo.industryIdentifiers.find(i => i.type === 'ISBN_13');
+    const isbn10 = volumeInfo.industryIdentifiers.find(i => i.type === 'ISBN_10');
+
+    isbn = isbn13?.identifier || isbn10?.identifier || isbn;
   }
 
-  if (!isLikelyISBN(isbn)) {
-    showManualMessage(isbn);
-    alert('Il codice letto non sembra un ISBN valido. Puoi inserirlo manualmente.');
-    return;
+  return {
+    id: Date.now(),
+    isbn: isbn,
+    title: volumeInfo.title || 'Titolo sconosciuto',
+    author: (volumeInfo.authors || ['Autore sconosciuto']).join(', '),
+    year: (volumeInfo.publishedDate || 'Anno non disponibile').substring(0,4),
+    cover: normalizeCover(
+      volumeInfo.imageLinks?.thumbnail ||
+      volumeInfo.imageLinks?.smallThumbnail ||
+      ''
+    ),
+    source: 'Google Books',
+    place: '',
+    category: '',
+    status: '',
+    rating: 0,
+    notes: ''
+  };
+}
+
+async function searchGoogleBooks(query){
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`;
+
+  const response = await fetch(url);
+
+  if(!response.ok){
+    return null;
   }
 
-  try {
-    let response = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
-    );
+  const data = await response.json();
 
-    let data = await response.json();
+  if(data.totalItems && data.items && data.items.length > 0){
+    return data.items[0].volumeInfo;
+  }
 
-    if (data.totalItems && data.totalItems > 0) {
-      const book = data.items[0].volumeInfo;
+  return null;
+}
 
-      currentBook = {
+async function searchOpenLibraryByIsbn(isbn){
+  try{
+    let response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+
+    if(response.ok){
+      const data = await response.json();
+
+      let author = 'Autore sconosciuto';
+
+      if(data.authors && data.authors.length > 0){
+        try{
+          const authorResponse = await fetch(`https://openlibrary.org${data.authors[0].key}.json`);
+          const authorData = await authorResponse.json();
+          author = authorData.name || author;
+        }catch(e){}
+      }
+
+      let cover = '';
+
+      if(data.covers && data.covers.length > 0){
+        cover = `https://covers.openlibrary.org/b/id/${data.covers[0]}-M.jpg`;
+      }else{
+        cover = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+      }
+
+      return {
+        id: Date.now(),
         isbn: isbn,
-        title: book.title || 'Titolo sconosciuto',
-        author: (book.authors || ['Autore sconosciuto']).join(', '),
-        year: (book.publishedDate || 'Anno non disponibile').substring(0, 4),
-        cover: book.imageLinks?.thumbnail || '',
-        place: ''
+        title: data.title || 'Titolo sconosciuto',
+        author: author,
+        year: data.publish_date || 'Anno non disponibile',
+        cover: cover,
+        source: 'Open Library',
+        place: '',
+        category: '',
+        status: '',
+        rating: 0,
+        notes: ''
       };
+    }
+  }catch(e){}
 
+  try{
+    const response = await fetch(`https://openlibrary.org/search.json?isbn=${encodeURIComponent(isbn)}`);
+    const data = await response.json();
+
+    if(data.docs && data.docs.length > 0){
+      const doc = data.docs[0];
+
+      return {
+        id: Date.now(),
+        isbn: isbn,
+        title: doc.title || 'Titolo sconosciuto',
+        author: (doc.author_name || ['Autore sconosciuto']).join(', '),
+        year: doc.first_publish_year || 'Anno non disponibile',
+        cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+        source: 'Open Library',
+        place: '',
+        category: '',
+        status: '',
+        rating: 0,
+        notes: ''
+      };
+    }
+  }catch(e){}
+
+  return null;
+}
+
+async function searchBookByIsbn(rawCode){
+  const isbn = cleanCode(rawCode);
+
+  if(!isbn){
+    alert('Inserisci un codice ISBN.');
+    return;
+  }
+
+  if(isMagazineOrIssn(isbn)){
+    showNotIsbnMessage(isbn);
+    alert('Questo codice inizia con 977: probabilmente non è un ISBN.');
+    return;
+  }
+
+  if(!isLikelyISBN(isbn)){
+    showNotIsbnMessage(isbn);
+    alert('Il codice letto non sembra un ISBN valido.');
+    return;
+  }
+
+  setLoading('Ricerca libro in corso...');
+
+  try{
+    let volume = await searchGoogleBooks(`isbn:${isbn}`);
+
+    if(!volume){
+      volume = await searchGoogleBooks(isbn);
+    }
+
+    if(volume){
+      currentBook = makeBookFromGoogle(volume, isbn);
       showBook();
       return;
     }
 
-    response = await fetch(
-      `https://openlibrary.org/isbn/${isbn}.json`
-    );
+    const openBook = await searchOpenLibraryByIsbn(isbn);
 
-    if (!response.ok) {
-      throw new Error('Libro non trovato');
+    if(openBook){
+      currentBook = openBook;
+      showBook();
+      return;
     }
 
-    data = await response.json();
+    currentBook = null;
 
-    let author = 'Autore sconosciuto';
-
-    if (data.authors && data.authors.length > 0) {
-      try {
-        const authorResponse = await fetch(
-          `https://openlibrary.org${data.authors[0].key}.json`
-        );
-
-        const authorData = await authorResponse.json();
-        author = authorData.name || 'Autore sconosciuto';
-      } catch (e) {
-        author = 'Autore sconosciuto';
-      }
-    }
-
-    currentBook = {
-      isbn: isbn,
-      title: data.title || 'Titolo sconosciuto',
-      author: author,
-      year: data.publish_date || 'Anno non disponibile',
-      cover: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`,
-      place: ''
-    };
-
-    showBook();
-
-  } catch (e) {
-    document.getElementById('bookInfo').innerHTML = `
+    $('bookInfo').innerHTML = `
       <h3>📕 Libro non trovato online</h3>
-      <p>Codice letto: <strong>${isbn}</strong></p>
-      <p>Puoi inserirlo manualmente compilando titolo, autore e anno.</p>
+      <p>Codice cercato: <strong>${safe(isbn)}</strong></p>
+      <p>Puoi correggere il codice, cercare per titolo oppure inserirlo manualmente.</p>
     `;
 
-    alert('Libro non trovato online. Inseriscilo manualmente.');
+    alert('Libro non trovato online. Puoi correggere il codice o inserirlo manualmente.');
+
+  }catch(e){
+    currentBook = null;
+
+    $('bookInfo').innerHTML = `
+      <h3>⚠️ Errore ricerca</h3>
+      <p>Controlla la connessione internet e riprova.</p>
+    `;
+
+    alert('Errore durante la ricerca. Controlla la connessione.');
   }
 }
 
-async function searchByTitle(title, author = '') {
-  try {
-    const query = encodeURIComponent(`${title} ${author}`);
+async function searchBookByTitle(){
+  const title = manualTitle.value.trim();
+  const author = manualAuthor.value.trim();
 
-    const response = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${query}`
-    );
+  if(!title){
+    alert('Inserisci almeno il titolo.');
+    return;
+  }
 
+  setLoading('Ricerca per titolo in corso...');
+
+  try{
+    let query = title;
+
+    if(author){
+      query += ' ' + author;
+    }
+
+    let volume = await searchGoogleBooks(query);
+
+    if(volume){
+      currentBook = makeBookFromGoogle(volume, '');
+      showBook();
+      alert('Libro trovato. Controlla i dati e poi premi Salva libro.');
+      return;
+    }
+
+    const url = `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`;
+    const response = await fetch(url);
     const data = await response.json();
 
-    if (data.totalItems && data.totalItems > 0) {
-      const book = data.items[0].volumeInfo;
+    if(data.docs && data.docs.length > 0){
+      const doc = data.docs[0];
 
       currentBook = {
-        isbn: book.industryIdentifiers
-          ? book.industryIdentifiers[0].identifier
-          : 'Manuale',
-        title: book.title || title,
-        author: (book.authors || [author || 'Autore sconosciuto']).join(', '),
-        year: (book.publishedDate || manualYear.value || 'Anno non disponibile').substring(0, 4),
-        cover: book.imageLinks?.thumbnail || '',
-        place: ''
+        id: Date.now(),
+        isbn: doc.isbn && doc.isbn.length ? doc.isbn[0] : 'Manuale',
+        title: doc.title || title,
+        author: (doc.author_name || [author || 'Autore sconosciuto']).join(', '),
+        year: doc.first_publish_year || manualYear.value.trim() || 'Anno non disponibile',
+        cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+        source: 'Open Library',
+        place: '',
+        category: '',
+        status: '',
+        rating: 0,
+        notes: ''
       };
 
       showBook();
-      alert('Libro trovato tramite ricerca per titolo. Ora puoi salvarlo.');
-      return true;
+      alert('Libro trovato. Controlla i dati e poi premi Salva libro.');
+      return;
     }
 
-    return false;
+    prepareManualBook();
+    alert('Libro non trovato online. È stato preparato un inserimento manuale.');
 
-  } catch (e) {
-    return false;
+  }catch(e){
+    prepareManualBook();
+    alert('Errore nella ricerca. È stato preparato un inserimento manuale.');
   }
 }
 
-async function startScanner() {
-  try {
-    reader.style.display = 'block';
-    reader.innerHTML = '<p>📷 Avvio fotocamera...</p>';
+function prepareManualBook(){
+  const title = manualTitle.value.trim();
+  const author = manualAuthor.value.trim();
+  const year = manualYear.value.trim();
+  const isbn = isbnInput.value.trim() || scannedCode.value.trim() || 'Manuale';
+
+  if(!title){
+    alert('Inserisci almeno il titolo del libro.');
+    return;
+  }
+
+  currentBook = {
+    id: Date.now(),
+    isbn: isbn || 'Manuale',
+    title: title,
+    author: author || 'Autore non indicato',
+    year: year || 'Anno non indicato',
+    cover: '',
+    source: 'Manuale',
+    place: '',
+    category: '',
+    status: '',
+    rating: 0,
+    notes: ''
+  };
+
+  showBook();
+}
+
+async function stopScanner(){
+  try{
+    if(html5QrCode){
+      await html5QrCode.stop();
+      await html5QrCode.clear();
+      html5QrCode = null;
+    }
+  }catch(e){}
+
+  reader.innerHTML = '';
+}
+
+async function startScanner(){
+  try{
+    await stopScanner();
+
+    reader.innerHTML = '<p class="box">📷 Avvio fotocamera...</p>';
+
+    if(!window.Html5Qrcode){
+      alert('Libreria scanner non caricata. Ricarica la pagina.');
+      return;
+    }
 
     const cameras = await Html5Qrcode.getCameras();
 
-    if (!cameras || cameras.length === 0) {
+    if(!cameras || cameras.length === 0){
       alert('Nessuna fotocamera trovata. Controlla i permessi del browser.');
-      reader.style.display = 'none';
+      reader.innerHTML = '';
       return;
     }
 
@@ -236,103 +457,296 @@ async function startScanner() {
 
     html5QrCode = new Html5Qrcode('reader');
 
+    const config = {
+      fps:10,
+      qrbox:{
+        width:280,
+        height:160
+      },
+      aspectRatio:1.777778
+    };
+
+    if(window.Html5QrcodeSupportedFormats){
+      config.formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ];
+    }
+
     await html5QrCode.start(
       cameraId,
-      {
-        fps: 10,
-        qrbox: {
-          width: 250,
-          height: 150
-        }
-      },
-      decodedText => {
-        html5QrCode.stop().then(() => {
-          reader.style.display = 'none';
-          searchBook(decodedText);
-        });
+      config,
+      async decodedText => {
+        await stopScanner();
+
+        const code = cleanCode(decodedText);
+
+        scannedCode.value = code;
+        isbnInput.value = code;
+        scanResult.hidden = false;
+
+        alert('Codice letto: ' + code + '\n\nControllalo e premi “Cerca questo codice”.');
       },
       errorMessage => {}
     );
 
-  } catch (e) {
+  }catch(e){
+    reader.innerHTML = '';
     alert('Fotocamera non avviata. Controlla i permessi della fotocamera e ricarica la pagina.');
-    reader.style.display = 'none';
   }
 }
 
-scanBtn.addEventListener('click', () => {
-  startScanner();
-});
-
-manualBtn.addEventListener('click', async () => {
-  const title = manualTitle.value.trim();
-  const author = manualAuthor.value.trim();
-  const year = manualYear.value.trim();
-
-  if (!title) {
-    alert('Inserisci almeno il titolo del libro.');
-    return;
-  }
-
-  const provaRicerca = confirm(
-    'Vuoi provare a cercare il libro online tramite titolo?\n\nOK = cerca online\nAnnulla = inserisci manualmente'
-  );
-
-  if (provaRicerca) {
-    const trovato = await searchByTitle(title, author);
-
-    if (trovato) {
-      return;
-    }
-
-    alert('Non trovato online. Verrà preparato come inserimento manuale.');
-  }
-
-  currentBook = {
-    isbn: 'Manuale',
-    title: title,
-    author: author || 'Autore non indicato',
-    year: year || 'Anno non indicato',
-    cover: '',
-    place: ''
-  };
-
-  showBook();
-
-  alert('Libro inserito manualmente. Ora premi “Salva libro”.');
-});
-
-document.getElementById('saveBtn').addEventListener('click', () => {
-  if (!currentBook) {
+function saveCurrentBook(){
+  if(!currentBook){
     alert('Prima scannerizza, cerca o inserisci un libro.');
     return;
   }
 
-  currentBook.place =
-    document.getElementById('posizione').value || 'Non indicato';
+  const title = manualTitle.value.trim();
+  const author = manualAuthor.value.trim();
+  const year = manualYear.value.trim();
 
-  library.push(currentBook);
+  if(title){
+    currentBook.title = title;
+  }
 
-  localStorage.setItem(
-    'library',
-    JSON.stringify(library)
+  if(author){
+    currentBook.author = author;
+  }
+
+  if(year){
+    currentBook.year = year;
+  }
+
+  currentBook.id = Date.now();
+  currentBook.place = getPositionValue();
+  currentBook.category = category.value || 'Non indicata';
+  currentBook.status = statusSelect.value || 'Da leggere';
+  currentBook.rating = Number(rating.value || 0);
+  currentBook.notes = notes.value.trim();
+
+  const sameBook = library.find(book =>
+    book.isbn &&
+    currentBook.isbn &&
+    book.isbn !== 'Manuale' &&
+    book.isbn === currentBook.isbn
   );
+
+  if(sameBook){
+    const confirmDuplicate = confirm('Questo ISBN sembra già presente. Vuoi salvarlo comunque?');
+
+    if(!confirmDuplicate){
+      return;
+    }
+  }
+
+  library.push({...currentBook});
+
+  localStorage.setItem('library', JSON.stringify(library));
 
   currentBook = null;
 
-  document.getElementById('bookInfo').innerHTML = 'Nessun libro selezionato';
-  document.getElementById('posizione').value = '';
+  $('bookInfo').innerHTML = 'Nessun libro selezionato';
+
+  isbnInput.value = '';
+  scannedCode.value = '';
+  scanResult.hidden = true;
+
   manualTitle.value = '';
   manualAuthor.value = '';
   manualYear.value = '';
 
-  renderLibrary();
+  posizione.value = '';
+  posizioneAltro.value = '';
+  category.value = 'Non indicata';
+  statusSelect.value = 'Da leggere';
+  rating.value = '0';
+  notes.value = '';
+
+  renderLibrary(searchInput.value);
+  updateStats();
 
   alert('✅ Libro salvato nella tua libreria.');
+}
+
+function renderLibrary(filter = ''){
+  const text = filter.toLowerCase().trim();
+
+  const books = library
+    .map((book,index) => ({book,index}))
+    .filter(item => {
+      const book = item.book;
+
+      const searchable = [
+        book.title,
+        book.author,
+        book.isbn,
+        book.place,
+        book.category,
+        book.status,
+        book.notes
+      ].join(' ').toLowerCase();
+
+      return searchable.includes(text);
+    });
+
+  libraryDiv.innerHTML = '';
+
+  if(books.length === 0){
+    libraryDiv.innerHTML = '<p>Nessun libro presente.</p>';
+    return;
+  }
+
+  books.forEach(item => {
+    const book = item.book;
+    const index = item.index;
+
+    libraryDiv.innerHTML += `
+      <div class="card">
+        <div class="card-content">
+          ${
+            book.cover
+            ? `<img src="${safe(book.cover)}" alt="${safe(book.title)}">`
+            : `<div class="cover-placeholder">📚</div>`
+          }
+
+          <div>
+            <h3>📖 ${safe(book.title)}</h3>
+            <p>✍️ ${safe(book.author)}</p>
+            <p>📅 ${safe(book.year)}</p>
+            <p>📍 ${safe(book.place)}</p>
+            <p>🏷️ ${safe(book.category || 'Non indicata')}</p>
+            <p>📘 ${safe(book.status || 'Da leggere')}</p>
+            <p>⭐ ${safe(ratingStars(book.rating))}</p>
+            <p>🔢 ${safe(book.isbn || 'Manuale')}</p>
+            ${book.notes ? `<p>📝 ${safe(book.notes)}</p>` : ''}
+          </div>
+        </div>
+
+        <button data-delete="${index}">🗑️ Elimina libro</button>
+      </div>
+    `;
+  });
+}
+
+function updateStats(){
+  const total = library.length;
+  const letti = library.filter(b => b.status === 'Letto').length;
+  const inLettura = library.filter(b => b.status === 'In lettura').length;
+  const daLeggere = library.filter(b => b.status === 'Da leggere').length;
+
+  statsDiv.innerHTML = `
+    <div class="stat">Totale libri<span>${total}</span></div>
+    <div class="stat">Letti<span>${letti}</span></div>
+    <div class="stat">In lettura<span>${inLettura}</span></div>
+    <div class="stat">Da leggere<span>${daLeggere}</span></div>
+  `;
+}
+
+function deleteBook(index){
+  const confirmDelete = confirm('Vuoi eliminare questo libro?');
+
+  if(!confirmDelete){
+    return;
+  }
+
+  library.splice(index,1);
+  localStorage.setItem('library', JSON.stringify(library));
+  renderLibrary(searchInput.value);
+  updateStats();
+}
+
+function exportCSV(){
+  if(library.length === 0){
+    alert('Non ci sono libri da esportare.');
+    return;
+  }
+
+  const headers = [
+    'Titolo',
+    'Autore',
+    'Anno',
+    'ISBN',
+    'Posizione',
+    'Categoria',
+    'Stato',
+    'Valutazione',
+    'Note'
+  ];
+
+  const rows = library.map(book => [
+    book.title,
+    book.author,
+    book.year,
+    book.isbn,
+    book.place,
+    book.category,
+    book.status,
+    book.rating,
+    book.notes
+  ]);
+
+  const csv = [headers,...rows]
+    .map(row =>
+      row.map(value =>
+        `"${String(value || '').replace(/"/g,'""')}"`
+      ).join(',')
+    )
+    .join('\n');
+
+  const blob = new Blob(['\ufeff' + csv], {
+    type:'text/csv;charset=utf-8;'
+  });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'libreria-casa.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
+}
+
+scanBtn.addEventListener('click', startScanner);
+stopScanBtn.addEventListener('click', stopScanner);
+
+useScannedBtn.addEventListener('click', () => {
+  searchBookByIsbn(scannedCode.value);
 });
+
+searchIsbnBtn.addEventListener('click', () => {
+  searchBookByIsbn(isbnInput.value);
+});
+
+searchTitleBtn.addEventListener('click', searchBookByTitle);
+
+manualBtn.addEventListener('click', () => {
+  prepareManualBook();
+  alert('Inserimento manuale preparato. Ora puoi scegliere posizione, categoria e salvare.');
+});
+
+saveBtn.addEventListener('click', saveCurrentBook);
 
 searchInput.addEventListener('input', e => {
   renderLibrary(e.target.value);
 });
 
+libraryDiv.addEventListener('click', e => {
+  if(e.target.dataset.delete !== undefined){
+    deleteBook(Number(e.target.dataset.delete));
+  }
+});
+
+exportBtn.addEventListener('click', exportCSV);
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
 renderLibrary();
+updateStats();
