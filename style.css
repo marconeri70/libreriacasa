@@ -2,13 +2,34 @@
   box-sizing:border-box;
 }
 
+html{
+  scroll-behavior:smooth;
+}
+
 body{
   margin:0;
   font-family:Arial, Helvetica, sans-serif;
   background:#eef2f7;
   color:#1d2733;
-  padding-bottom:86px;
+  padding-bottom:90px;
 }
+
+button,
+input,
+select,
+textarea{
+  font-family:inherit;
+}
+
+button{
+  -webkit-tap-highlight-color:transparent;
+}
+
+[hidden]{
+  display:none !important;
+}
+
+/* HEADER */
 
 .app-header{
   background:linear-gradient(135deg,#0d47a1,#1976d2);
@@ -28,6 +49,8 @@ body{
   margin:6px 0 0;
   opacity:0.9;
 }
+
+/* CONTENUTO */
 
 .app-main{
   max-width:900px;
@@ -68,6 +91,14 @@ body{
   background:#f8fbff;
 }
 
+.small-text{
+  color:#5d6b7a;
+  font-size:14px;
+  line-height:1.45;
+}
+
+/* ARCHIVIO ONLINE */
+
 .cloud-status{
   background:#e8f1ff;
   border:1px solid #c9dcf8;
@@ -76,6 +107,16 @@ body{
   margin-top:14px;
   line-height:1.45;
 }
+
+.archive-box{
+  background:#f8fafc;
+  border:1px solid #dce5f2;
+  border-radius:14px;
+  padding:13px;
+  margin:12px 0;
+}
+
+/* PULSANTI HOME */
 
 .quick-grid{
   display:grid;
@@ -101,6 +142,8 @@ body{
   margin-bottom:8px;
 }
 
+/* STATISTICHE */
+
 .stats-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -122,6 +165,8 @@ body{
   color:#1d2733;
 }
 
+/* CAMPI */
+
 input,
 select,
 textarea{
@@ -132,6 +177,15 @@ textarea{
   margin:7px 0 14px;
   font-size:15px;
   background:white;
+  color:#1d2733;
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+  outline:none;
+  border-color:#1976d2;
+  box-shadow:0 0 0 3px rgba(25,118,210,0.12);
 }
 
 textarea{
@@ -146,6 +200,8 @@ label{
   color:#34465c;
 }
 
+/* PULSANTI */
+
 button{
   border:0;
   border-radius:12px;
@@ -154,6 +210,10 @@ button{
   font-size:15px;
   cursor:pointer;
   margin:5px 0;
+}
+
+button:active{
+  transform:scale(0.98);
 }
 
 .primary{
@@ -185,17 +245,19 @@ button{
   margin:12px 0;
 }
 
-.small-text{
-  color:#5d6b7a;
-  font-size:14px;
-  line-height:1.4;
-}
+/* SCANNER */
 
 #reader{
   margin-top:14px;
   overflow:hidden;
   border-radius:14px;
 }
+
+#reader video{
+  border-radius:14px;
+}
+
+/* ANTEPRIMA LIBRO */
 
 .preview{
   display:flex;
@@ -222,6 +284,107 @@ button{
   justify-content:center;
   font-size:34px;
 }
+
+/* FOTO POSIZIONE */
+
+.position-photo-section{
+  margin:18px 0;
+  padding:15px;
+  background:#f6f9fd;
+  border:1px solid #d7e2f0;
+  border-radius:16px;
+}
+
+.position-photo-section h3{
+  margin:0 0 8px;
+  color:#0d47a1;
+}
+
+.position-photo-preview-box{
+  margin-top:14px;
+  padding:12px;
+  background:white;
+  border:1px solid #dce5f2;
+  border-radius:14px;
+}
+
+.position-photo-preview-box p{
+  margin-top:0;
+}
+
+.position-photo-preview{
+  display:block;
+  width:100%;
+  max-width:520px;
+  max-height:360px;
+  margin:0 auto 12px;
+  object-fit:contain;
+  border-radius:14px;
+  background:#e8edf3;
+  box-shadow:0 4px 15px rgba(0,0,0,0.16);
+}
+
+.position-photo-status{
+  margin-top:12px;
+  padding:11px 12px;
+  background:#eef3f8;
+  border:1px solid #d8e1eb;
+  border-radius:12px;
+  color:#536273;
+  font-size:14px;
+  line-height:1.4;
+}
+
+.position-photo-status.loading{
+  background:#fff8e1;
+  border-color:#ffe082;
+  color:#785800;
+}
+
+.position-photo-status.success{
+  background:#e8f5e9;
+  border-color:#a5d6a7;
+  color:#1b5e20;
+}
+
+.position-photo-status.error{
+  background:#ffebee;
+  border-color:#ef9a9a;
+  color:#b71c1c;
+}
+
+/* FOTO POSIZIONE NELLA SCHEDA */
+
+.position-photo-detail{
+  margin:15px 0;
+  padding:12px;
+  background:#f7f9fc;
+  border:1px solid #dce5f2;
+  border-radius:14px;
+}
+
+.position-photo-detail h3{
+  margin:0 0 10px;
+  color:#0d47a1;
+}
+
+.position-photo-detail a{
+  display:block;
+  text-decoration:none;
+}
+
+.position-photo-detail img{
+  display:block;
+  width:100%;
+  max-width:520px;
+  max-height:380px;
+  object-fit:contain;
+  border-radius:14px;
+  background:#e8edf3;
+  box-shadow:0 4px 15px rgba(0,0,0,0.16);
+}
+
+/* SCHEDE LIBRI */
 
 .card{
   background:#ffffff;
@@ -284,6 +447,8 @@ button{
   color:white;
 }
 
+/* FINESTRA SCHEDA LIBRO */
+
 .modal-backdrop{
   position:fixed;
   inset:0;
@@ -326,6 +491,7 @@ button{
   color:#0d47a1;
   border-radius:50%;
   width:40px;
+  min-width:40px;
   height:40px;
   padding:0;
   font-size:18px;
@@ -357,6 +523,7 @@ button{
 
 .detail-info{
   flex:1;
+  min-width:0;
 }
 
 .detail-info h3{
@@ -366,6 +533,7 @@ button{
 
 .detail-info p{
   line-height:1.45;
+  overflow-wrap:anywhere;
 }
 
 .detail-actions{
@@ -381,6 +549,8 @@ button{
   margin:0;
 }
 
+/* TRAMA */
+
 .book-plot{
   background:#f8fafc;
   border-left:4px solid #0d47a1;
@@ -395,6 +565,8 @@ button{
   font-style:italic;
   border-left-color:#b0bec5;
 }
+
+/* PRESTITI E RICHIESTE */
 
 .loan-card,
 .request-card{
@@ -427,13 +599,7 @@ button{
   font-size:12px;
 }
 
-.archive-box{
-  background:#f8fafc;
-  border:1px solid #dce5f2;
-  border-radius:14px;
-  padding:13px;
-  margin:12px 0;
-}
+/* MENU IN BASSO */
 
 .bottom-nav{
   position:fixed;
@@ -476,7 +642,14 @@ hr{
   margin:18px 0;
 }
 
+/* TELEFONO */
+
 @media(max-width:620px){
+
+  body{
+    padding-bottom:88px;
+  }
+
   .app-main{
     padding:12px;
   }
@@ -497,29 +670,47 @@ hr{
 
   .preview img,
   .cover-placeholder,
-  .card-content img,
-  .detail-cover,
-  .detail-cover.placeholder{
+  .card-content img{
     width:100px;
     min-width:100px;
-    height:auto;
     max-height:150px;
   }
 
+  .detail-cover,
   .detail-cover.placeholder{
-    height:150px;
+    width:120px;
+    min-width:120px;
+    max-height:180px;
+  }
+
+  .detail-cover.placeholder{
+    height:180px;
+  }
+
+  .modal-backdrop{
+    align-items:flex-start;
+    padding:12px;
   }
 
   .modal-card{
-    max-height:88vh;
+    max-height:92vh;
+    margin-top:8px;
     padding:14px;
-  }
-
-  button{
-    width:100%;
   }
 
   .button-row{
     flex-direction:column;
+  }
+
+  .button-row button{
+    width:100%;
+  }
+
+  .position-photo-preview{
+    max-height:280px;
+  }
+
+  .position-photo-detail img{
+    max-height:300px;
   }
 }
