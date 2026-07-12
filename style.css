@@ -761,3 +761,9 @@ hr{
     max-height:300px;
   }
 }
+
+.position-photo-status.warning{
+  background:#fff3cd;
+  border-color:#ffe082;
+  color:#7a5200;
+}
