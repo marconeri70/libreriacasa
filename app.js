@@ -58,6 +58,12 @@ const trama = $('trama');
 const saveBtn = $('saveBtn');
 const exportBtn = $('exportBtn');
 
+const filterCategory = $('filterCategory');
+const filterStatus = $('filterStatus');
+const filterPlace = $('filterPlace');
+const sortBy = $('sortBy');
+const resetFiltersBtn = $('resetFiltersBtn');
+
 const refreshLoansBtn = $('refreshLoansBtn');
 const loanedBooksDiv = $('loanedBooks');
 const loadRequestsBtn = $('loadRequestsBtn');
@@ -1921,14 +1927,73 @@ async function saveCurrentBook(){
   );
 }
 
+function populatePlaceFilter(){
+  if(!filterPlace){
+    return;
+  }
+
+  const previousValue = filterPlace.value;
+
+  const places = Array.from(
+    new Set(
+      library
+        .map(book => (book.place || '').trim())
+        .filter(place => place.length > 0)
+    )
+  ).sort((a,b) => a.localeCompare(b, 'it'));
+
+  filterPlace.innerHTML = '<option value="">📍 Tutte le posizioni</option>' +
+    places.map(place => `<option value="${safe(place)}">${safe(place)}</option>`).join('');
+
+  if(places.includes(previousValue)){
+    filterPlace.value = previousValue;
+  }
+}
+
+function sortBooks(items, sortKey){
+  const sorted = items.slice();
+
+  switch(sortKey){
+    case 'title':
+      sorted.sort((a,b) => String(a.book.title || '').localeCompare(String(b.book.title || ''), 'it'));
+      break;
+
+    case 'author':
+      sorted.sort((a,b) => String(a.book.author || '').localeCompare(String(b.book.author || ''), 'it'));
+      break;
+
+    case 'rating':
+      sorted.sort((a,b) => Number(b.book.rating || 0) - Number(a.book.rating || 0));
+      break;
+
+    case 'year':
+      sorted.sort((a,b) => Number(b.book.year || 0) - Number(a.book.year || 0));
+      break;
+
+    case 'recent':
+    default:
+      sorted.sort((a,b) => Number(b.book.id || 0) - Number(a.book.id || 0));
+      break;
+  }
+
+  return sorted;
+}
+
 function renderLibrary(filter = ''){
   if(!libraryDiv){
     return;
   }
 
+  populatePlaceFilter();
+
   const text = filter.toLowerCase().trim();
 
-  const books = library
+  const categoryFilter = filterCategory ? filterCategory.value : '';
+  const statusFilter = filterStatus ? filterStatus.value : '';
+  const placeFilter = filterPlace ? filterPlace.value : '';
+  const sortKey = sortBy ? sortBy.value : 'recent';
+
+  let books = library
     .map((book,index) => ({book,index}))
     .filter(item => {
       const book = item.book;
@@ -1945,7 +2010,12 @@ function renderLibrary(filter = ''){
       ].join(' ').toLowerCase();
 
       return searchable.includes(text);
-    });
+    })
+    .filter(item => !categoryFilter || (item.book.category || 'Non indicata') === categoryFilter)
+    .filter(item => !statusFilter || (item.book.status || 'Da leggere') === statusFilter)
+    .filter(item => !placeFilter || item.book.place === placeFilter);
+
+  books = sortBooks(books, sortKey);
 
   libraryDiv.innerHTML = '';
 
@@ -2226,6 +2296,22 @@ saveBtn?.addEventListener('click', saveCurrentBook);
 
 searchInput?.addEventListener('input', event => {
   renderLibrary(event.target.value);
+});
+
+[filterCategory, filterStatus, filterPlace, sortBy].forEach(el => {
+  el?.addEventListener('change', () => {
+    renderLibrary(searchInput?.value || '');
+  });
+});
+
+resetFiltersBtn?.addEventListener('click', () => {
+  if(searchInput) searchInput.value = '';
+  if(filterCategory) filterCategory.value = '';
+  if(filterStatus) filterStatus.value = '';
+  if(filterPlace) filterPlace.value = '';
+  if(sortBy) sortBy.value = 'recent';
+
+  renderLibrary();
 });
 
 libraryDiv?.addEventListener('click', event => {

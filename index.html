@@ -168,6 +168,47 @@
           placeholder="Cerca per titolo, autore, ISBN, categoria o prestito..."
         >
 
+        <div class="filter-row">
+          <select id="filterCategory">
+            <option value="">🏷️ Tutte le categorie</option>
+            <option value="Non indicata">Non indicata</option>
+            <option value="Romanzo">Romanzo</option>
+            <option value="Giallo">Giallo</option>
+            <option value="Thriller">Thriller</option>
+            <option value="Fantasy">Fantasy</option>
+            <option value="Storia">Storia</option>
+            <option value="Biografia">Biografia</option>
+            <option value="Religione">Religione</option>
+            <option value="Informatica">Informatica</option>
+            <option value="Tecnico">Tecnico</option>
+            <option value="Fumetto">Fumetto</option>
+            <option value="Altro">Altro</option>
+          </select>
+
+          <select id="filterStatus">
+            <option value="">📘 Tutti gli stati</option>
+            <option value="Da leggere">Da leggere</option>
+            <option value="In lettura">In lettura</option>
+            <option value="Letto">Letto</option>
+          </select>
+
+          <select id="filterPlace">
+            <option value="">📍 Tutte le posizioni</option>
+          </select>
+
+          <select id="sortBy">
+            <option value="recent">🕒 Più recenti</option>
+            <option value="title">🔤 Titolo A-Z</option>
+            <option value="author">✍️ Autore A-Z</option>
+            <option value="rating">⭐ Valutazione</option>
+            <option value="year">📅 Anno</option>
+          </select>
+
+          <button id="resetFiltersBtn" class="secondary">
+            ✖️ Reset filtri
+          </button>
+        </div>
+
         <button id="exportBtn" class="secondary">
           📤 Esporta CSV
         </button>
