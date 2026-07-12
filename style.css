@@ -595,6 +595,35 @@ button:active{
   margin:12px 0;
 }
 
+.loan-card.loan-due-soon{
+  background:#fff8e1;
+  border-color:#ffca28;
+}
+
+.loan-card.loan-overdue{
+  background:#ffebee;
+  border-color:#ef5350;
+}
+
+.loan-badge{
+  display:inline-block;
+  font-weight:bold;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:13px;
+  margin:6px 0 0;
+}
+
+.loan-badge-soon{
+  background:#fff3cd;
+  color:#7a5200;
+}
+
+.loan-badge-overdue{
+  background:#fdd8d8;
+  color:#a01212;
+}
+
 .loan-card h3,
 .request-card h3{
   margin:0 0 8px;
@@ -731,10 +760,4 @@ hr{
   .position-photo-detail img{
     max-height:300px;
   }
-}
-
-.position-photo-status.warning{
-  background:#fff3cd;
-  border-color:#ffe082;
-  color:#7a5200;
 }

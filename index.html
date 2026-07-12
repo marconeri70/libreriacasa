@@ -79,6 +79,11 @@
 
       </section>
 
+      <section class="panel" id="loanAlertsPanel" hidden>
+        <h2>🔔 Prestiti in scadenza</h2>
+        <div id="loanAlerts"></div>
+      </section>
+
       <section class="panel">
         <h2>📊 Statistiche</h2>
         <div id="stats" class="stats-grid"></div>
@@ -673,6 +678,34 @@
             🚪 Scollega libreria
           </button>
 
+        </div>
+
+        <hr>
+
+        <div class="archive-box">
+          <h3>💾 Backup locale (JSON)</h3>
+
+          <p class="small-text">
+            Salva un file di backup con tutti i tuoi libri, oppure
+            ripristina una libreria da un backup precedente.
+          </p>
+
+          <div class="button-row">
+            <button id="backupJsonBtn" class="secondary">
+              💾 Esporta backup JSON
+            </button>
+
+            <button id="restoreJsonBtn" class="secondary">
+              📂 Importa backup JSON
+            </button>
+          </div>
+
+          <input
+            id="restoreJsonInput"
+            type="file"
+            accept="application/json"
+            hidden
+          >
         </div>
       </section>
 

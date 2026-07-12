@@ -64,6 +64,10 @@ const filterPlace = $('filterPlace');
 const sortBy = $('sortBy');
 const resetFiltersBtn = $('resetFiltersBtn');
 
+const backupJsonBtn = $('backupJsonBtn');
+const restoreJsonBtn = $('restoreJsonBtn');
+const restoreJsonInput = $('restoreJsonInput');
+
 const refreshLoansBtn = $('refreshLoansBtn');
 const loanedBooksDiv = $('loanedBooks');
 const loadRequestsBtn = $('loadRequestsBtn');
@@ -149,6 +153,23 @@ function updateCloudStatus(){
     Nome: <strong>${safe(cloudSession.nomeLibreria)}</strong><br>
     Codice: <strong>${safe(cloudSession.codiceLibreria)}</strong>
   `;
+}
+
+function findBookByIsbn(isbn, excludeIndex = null){
+  const clean = String(isbn || '').trim();
+
+  if(!clean || clean === 'Manuale'){
+    return null;
+  }
+
+  const index = library.findIndex((book, i) =>
+    i !== excludeIndex &&
+    book.isbn &&
+    book.isbn !== 'Manuale' &&
+    String(book.isbn) === clean
+  );
+
+  return index === -1 ? null : {book: library[index], index};
 }
 
 function cleanCode(code){
@@ -845,6 +866,23 @@ async function searchBookByIsbn(rawCode){
     showNotIsbnMessage(isbn);
     alert('Il codice letto non sembra un ISBN valido.');
     return;
+  }
+
+  const existing = findBookByIsbn(isbn);
+
+  if(existing){
+    const vaiAlLibro = confirm(
+      `📕 Hai già questo libro in libreria:\n"${existing.book.title || 'Senza titolo'}" di ${existing.book.author || 'Autore sconosciuto'}.\n\nVuoi aprire la scheda esistente invece di aggiungerlo di nuovo?`
+    );
+
+    if(vaiAlLibro){
+      if(typeof openBookDetail === 'function'){
+        openPage('library');
+        openBookDetail(existing.index);
+      }
+
+      return;
+    }
   }
 
   resetPositionPhotoEditor();
@@ -1739,16 +1777,12 @@ async function saveCurrentBook(){
   currentBook.restituito = currentBook.restituito || '';
   currentBook.dataRestituzione = currentBook.dataRestituzione || '';
 
-  const sameBook = library.find((book, index) =>
-    index !== editingBookIndex &&
-    book.isbn &&
-    currentBook.isbn &&
-    book.isbn !== 'Manuale' &&
-    String(book.isbn) === String(currentBook.isbn)
-  );
+  const sameBook = findBookByIsbn(currentBook.isbn, editingBookIndex);
 
   if(sameBook){
-    const confirmDuplicate = confirm('Questo ISBN sembra già presente. Vuoi salvarlo comunque?');
+    const confirmDuplicate = confirm(
+      `⚠️ Questo ISBN è già in libreria come:\n"${sameBook.book.title || 'Senza titolo'}" di ${sameBook.book.author || 'Autore sconosciuto'}.\n\nVuoi salvarlo comunque come libro separato?`
+    );
 
     if(!confirmDuplicate){
       return;
@@ -1927,12 +1961,78 @@ async function saveCurrentBook(){
   );
 }
 
+let pendingPlaceFilter = null;
+
+const FILTER_STATE_KEY = 'libreriaCasaFilterState';
+
+function saveFilterState(){
+  try{
+    localStorage.setItem(FILTER_STATE_KEY, JSON.stringify({
+      search: searchInput?.value || '',
+      category: filterCategory?.value || '',
+      status: filterStatus?.value || '',
+      place: filterPlace?.value || '',
+      sort: sortBy?.value || 'recent'
+    }));
+  }catch(error){}
+}
+
+function loadFilterState(){
+  try{
+    return JSON.parse(localStorage.getItem(FILTER_STATE_KEY) || 'null');
+  }catch(error){
+    return null;
+  }
+}
+
+function categoryCount(cat){
+  return library.filter(book => (book.category || 'Non indicata') === cat).length;
+}
+
+function statusCount(st){
+  return library.filter(book => (book.status || 'Da leggere') === st).length;
+}
+
+function populateCategoryAndStatusFilters(){
+  if(filterCategory){
+    const prev = filterCategory.value;
+
+    const categorie = [
+      'Non indicata','Romanzo','Giallo','Thriller','Fantasy',
+      'Storia','Biografia','Religione','Informatica','Tecnico',
+      'Fumetto','Altro'
+    ];
+
+    filterCategory.innerHTML =
+      `<option value="">🏷️ Tutte le categorie (${library.length})</option>` +
+      categorie.map(cat =>
+        `<option value="${safe(cat)}">${safe(cat)} (${categoryCount(cat)})</option>`
+      ).join('');
+
+    filterCategory.value = prev;
+  }
+
+  if(filterStatus){
+    const prev = filterStatus.value;
+    const stati = ['Da leggere','In lettura','Letto'];
+
+    filterStatus.innerHTML =
+      `<option value="">📘 Tutti gli stati (${library.length})</option>` +
+      stati.map(st =>
+        `<option value="${safe(st)}">${safe(st)} (${statusCount(st)})</option>`
+      ).join('');
+
+    filterStatus.value = prev;
+  }
+}
+
 function populatePlaceFilter(){
   if(!filterPlace){
     return;
   }
 
-  const previousValue = filterPlace.value;
+  const previousValue = pendingPlaceFilter !== null ? pendingPlaceFilter : filterPlace.value;
+  pendingPlaceFilter = null;
 
   const places = Array.from(
     new Set(
@@ -1942,8 +2042,11 @@ function populatePlaceFilter(){
     )
   ).sort((a,b) => a.localeCompare(b, 'it'));
 
-  filterPlace.innerHTML = '<option value="">📍 Tutte le posizioni</option>' +
-    places.map(place => `<option value="${safe(place)}">${safe(place)}</option>`).join('');
+  filterPlace.innerHTML = `<option value="">📍 Tutte le posizioni (${library.length})</option>` +
+    places.map(place => {
+      const count = library.filter(book => book.place === place).length;
+      return `<option value="${safe(place)}">${safe(place)} (${count})</option>`;
+    }).join('');
 
   if(places.includes(previousValue)){
     filterPlace.value = previousValue;
@@ -1985,6 +2088,7 @@ function renderLibrary(filter = ''){
   }
 
   populatePlaceFilter();
+  populateCategoryAndStatusFilters();
 
   const text = filter.toLowerCase().trim();
 
@@ -2115,14 +2219,104 @@ async function deleteBook(index){
   }
 }
 
+function getLoanUrgency(book){
+  if(!book.dataPrevistaRestituzione){
+    return null;
+  }
+
+  const due = new Date(book.dataPrevistaRestituzione);
+
+  if(isNaN(due.getTime())){
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  due.setHours(0,0,0,0);
+
+  const days = Math.round((due - today) / 86400000);
+
+  if(days < 0){
+    return {level: 'overdue', days};
+  }
+
+  if(days <= 3){
+    return {level: 'soon', days};
+  }
+
+  return {level: 'ok', days};
+}
+
+function loanUrgencyBadge(urgency){
+  if(!urgency){
+    return '';
+  }
+
+  if(urgency.level === 'overdue'){
+    return `<p class="loan-badge loan-badge-overdue">⏰ In ritardo di ${Math.abs(urgency.days)} giorno/i</p>`;
+  }
+
+  if(urgency.level === 'soon'){
+    return urgency.days === 0
+      ? `<p class="loan-badge loan-badge-soon">🔔 Scade oggi</p>`
+      : `<p class="loan-badge loan-badge-soon">🔔 Scade tra ${urgency.days} giorno/i</p>`;
+  }
+
+  return '';
+}
+
+function updateLoanAlerts(){
+  const panel = $('loanAlertsPanel');
+  const container = $('loanAlerts');
+
+  if(!panel || !container){
+    return;
+  }
+
+  const attenzione = library
+    .filter(book => book.prestatoA && book.restituito !== 'si')
+    .map(book => ({book, urgency: getLoanUrgency(book)}))
+    .filter(item => item.urgency && (item.urgency.level === 'overdue' || item.urgency.level === 'soon'))
+    .sort((a,b) => a.urgency.days - b.urgency.days);
+
+  if(attenzione.length === 0){
+    panel.hidden = true;
+    container.innerHTML = '';
+    return;
+  }
+
+  panel.hidden = false;
+
+  container.innerHTML = attenzione.map(item => `
+    <div class="loan-card ${item.urgency.level === 'overdue' ? 'loan-overdue' : 'loan-due-soon'}">
+      <h3>📖 ${safe(item.book.title)}</h3>
+      <p>📤 Prestato a: <strong>${safe(item.book.prestatoA)}</strong></p>
+      ${loanUrgencyBadge(item.urgency)}
+    </div>
+  `).join('');
+}
+
 function renderLoans(){
+  updateLoanAlerts();
+
   if(!loanedBooksDiv){
     return;
   }
 
-  const prestati = library.filter(book =>
-    book.prestatoA && book.restituito !== 'si'
-  );
+  const prestati = library
+    .filter(book => book.prestatoA && book.restituito !== 'si')
+    .map(book => ({book, urgency: getLoanUrgency(book)}))
+    .sort((a,b) => {
+      const rank = level => level === 'overdue' ? 0 : level === 'soon' ? 1 : level === 'ok' ? 2 : 3;
+      const rankA = rank(a.urgency?.level);
+      const rankB = rank(b.urgency?.level);
+
+      if(rankA !== rankB){
+        return rankA - rankB;
+      }
+
+      return (a.urgency?.days ?? 999) - (b.urgency?.days ?? 999);
+    });
 
   loanedBooksDiv.innerHTML = '';
 
@@ -2131,9 +2325,15 @@ function renderLoans(){
     return;
   }
 
-  prestati.forEach(book => {
+  prestati.forEach(({book, urgency}) => {
+    const cardClass = urgency?.level === 'overdue'
+      ? 'loan-overdue'
+      : urgency?.level === 'soon'
+        ? 'loan-due-soon'
+        : '';
+
     loanedBooksDiv.innerHTML += `
-      <div class="loan-card">
+      <div class="loan-card ${cardClass}">
         <h3>📖 ${safe(book.title)}</h3>
         <p>✍️ ${safe(book.author)}</p>
         <p>📤 Prestato a: <strong>${safe(book.prestatoA)}</strong></p>
@@ -2143,6 +2343,7 @@ function renderLoans(){
           ? `<p>🔔 Restituzione prevista: ${safe(book.dataPrevistaRestituzione)}</p>`
           : ''
         }
+        ${loanUrgencyBadge(urgency)}
         <p>📍 Posizione originale: ${safe(book.place || 'Non indicata')}</p>
       </div>
     `;
@@ -2269,7 +2470,86 @@ function exportCSV(){
   URL.revokeObjectURL(url);
 }
 
-createLibraryBtn?.addEventListener('click', createOnlineLibrary);
+function exportJsonBackup(){
+  if(library.length === 0){
+    alert('Non ci sono libri da esportare.');
+    return;
+  }
+
+  const payload = {
+    tipo: 'libreria-casa-backup',
+    versione: 1,
+    dataEsportazione: new Date().toISOString(),
+    codiceLibreria: cloudSession?.codiceLibreria || null,
+    libri: library
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json;charset=utf-8;'
+  });
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  const dataFile = new Date().toISOString().slice(0,10);
+
+  anchor.href = url;
+  anchor.download = `libreria-casa-backup-${dataFile}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+
+  URL.revokeObjectURL(url);
+}
+
+function readFileAsText(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Lettura file fallita'));
+    reader.readAsText(file);
+  });
+}
+
+async function importJsonBackup(file){
+  if(!file){
+    return;
+  }
+
+  try{
+    const text = await readFileAsText(file);
+    const data = JSON.parse(text);
+
+    const libri = Array.isArray(data) ? data : data?.libri;
+
+    if(!Array.isArray(libri)){
+      alert('Il file selezionato non sembra un backup valido di Libreria Casa.');
+      return;
+    }
+
+    const modalita = cloudSession
+      ? `libreria online "${cloudSession.nomeLibreria}"`
+      : 'libreria locale (modalità offline)';
+
+    const sostituire = confirm(
+      `Trovati ${libri.length} libri nel backup.\n\nVuoi SOSTITUIRE tutti i libri attuali nella ${modalita} con quelli del backup?\n\nQuesta azione non può essere annullata.`
+    );
+
+    if(!sostituire){
+      return;
+    }
+
+    library = libri.map(book => normalizeStoredBook(book));
+
+    saveLibraryLocal();
+    renderLibrary(searchInput?.value || '');
+    renderLoans();
+    updateStats();
+
+    alert('✅ Backup ripristinato con successo in locale.\n\nSe usi una libreria online, ricordati di sincronizzare manualmente ogni libro se vuoi che il backup sia riflesso anche sul cloud.');
+  }catch(error){
+    alert('Errore durante la lettura del file di backup. Controlla che sia un JSON esportato da Libreria Casa.');
+  }
+}
 loginLibraryBtn?.addEventListener('click', loginOnlineLibrary);
 syncBtn?.addEventListener('click', syncFromCloud);
 logoutLibraryBtn?.addEventListener('click', logoutOnlineLibrary);
@@ -2296,11 +2576,13 @@ saveBtn?.addEventListener('click', saveCurrentBook);
 
 searchInput?.addEventListener('input', event => {
   renderLibrary(event.target.value);
+  saveFilterState();
 });
 
 [filterCategory, filterStatus, filterPlace, sortBy].forEach(el => {
   el?.addEventListener('change', () => {
     renderLibrary(searchInput?.value || '');
+    saveFilterState();
   });
 });
 
@@ -2312,6 +2594,7 @@ resetFiltersBtn?.addEventListener('click', () => {
   if(sortBy) sortBy.value = 'recent';
 
   renderLibrary();
+  saveFilterState();
 });
 
 libraryDiv?.addEventListener('click', event => {
@@ -2412,13 +2695,36 @@ refreshLoansBtn?.addEventListener('click', renderLoans);
 loadRequestsBtn?.addEventListener('click', loadRequests);
 exportBtn?.addEventListener('click', exportCSV);
 
+backupJsonBtn?.addEventListener('click', exportJsonBackup);
+
+restoreJsonBtn?.addEventListener('click', () => {
+  restoreJsonInput?.click();
+});
+
+restoreJsonInput?.addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  importJsonBackup(file);
+  event.target.value = '';
+});
+
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
 loadLibrary();
 updateCloudStatus();
-renderLibrary();
+
+const savedFilterState = loadFilterState();
+
+if(savedFilterState){
+  if(searchInput) searchInput.value = savedFilterState.search || '';
+  if(filterCategory) filterCategory.value = savedFilterState.category || '';
+  if(filterStatus) filterStatus.value = savedFilterState.status || '';
+  if(sortBy) sortBy.value = savedFilterState.sort || 'recent';
+  pendingPlaceFilter = savedFilterState.place || '';
+}
+
+renderLibrary(searchInput?.value || '');
 renderLoans();
 updateStats();
 resetPositionPhotoEditor();
